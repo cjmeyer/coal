@@ -1,12 +1,12 @@
 # test_util.py
 
 import os
-import hydra
+import coal
 import shutil
 import unittest2 as unittest
 
-from hydra import error, util
-from hydra.util import checksignature
+from coal import error, util
+from coal.util import checksignature
 
 
 def path(p):

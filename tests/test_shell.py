@@ -4,8 +4,8 @@
 import StringIO
 import unittest2 as unittest
 
-from hydra import minirst, util
-from hydra.shell import Shell, ColorShell
+from coal import minirst, util
+from coal.shell import Shell, ColorShell
 
 from mock import Mock, patch
 

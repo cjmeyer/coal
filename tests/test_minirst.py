@@ -5,7 +5,7 @@ import glob
 import os
 import unittest2 as unittest
 
-from hydra import minirst
+from coal import minirst
 
 
 def re_test(re_, pass_):
