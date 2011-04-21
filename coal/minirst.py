@@ -38,7 +38,6 @@ _admonition_re = re.compile(
 _interpret_re = re.compile(
     r":\w+:`\w+`|`\w+`:\w+:")
 
-
 _admonitions = {
     "attention":"Attention:",
     "caution":"Caution:",
@@ -289,6 +288,35 @@ def parse_definition(src):
                       vspace=True)
 
 
+def inline_code(s):
+    return "\"%s\"" % s
+
+_inline_handlers = [
+    ("code", inline_code)
+]
+
+def _parse_interpreted(src):
+    """
+    Parse inline interpreted text.
+
+    Restructured text may contain custom inline constructs. These constructs
+    allow application specific formatting of the enclosed strings. Such a
+    construct is written as ":id:`text to format`" or "`text to format`:id:"
+    where "id" is some sort of identifier used to specify how to format the
+    specified text.
+    """
+    for h in _inline_handlers:
+        def interpret(m):
+            return h[1](m.group(1))
+        src = re.sub(r":%s:`([\w ]+)`" % h[0], interpret, src)
+        src = re.sub(r"`([\w ]+)`:%s:" % h[0], interpret, src)
+    return src
+
+
+def _parse_inline(src):
+    return _parse_interpreted(" ".join(l[1] for l in src).replace('``', '"'))
+
+
 def parse_paragraph(src):
     """
     Parse RST paragraph.
@@ -306,7 +334,7 @@ def parse_paragraph(src):
     if not block:
         return False, None, src
 
-    para = " ".join(l[1] for l in block)
+    para = _parse_inline(block)
     literal = None
     if para.endswith("::"):
         if para == "::":
