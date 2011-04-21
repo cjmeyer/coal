@@ -82,12 +82,24 @@ class MiniRSTTest(unittest.TestCase):
         test(":field key:  field value", "field key:", 13)
         test(":key:    value", "key:", 9)
 
+    @re_test(minirst._admonition_re, True)
+    def test_admonition_re(self, test):
+        test(".. attention:: text", "attention", 15)
+        test(".. caution::", "caution", 12)
+        test(".. danger::", "danger", 11)
+        test(".. error::", "error", 10)
+        test(".. hint::", "hint", 9)
+        test(".. important:: ", "important", 15)
+        test(".. note::", "note", 9)
+        test(".. tip::", "tip", 8)
+        test(".. warning::  ", "warning", 14)
+
 def build_test(p):
     def test(self):
         self.rst_test(p)
     return test
 
-for fname in glob.glob(os.path.join(os.path.dirname(__file__), "rst", "*.tst")):
-    test_name = "test_%s" % os.path.basename(fname)[:-4].replace("-", "_")
+for fname in glob.glob(os.path.join(os.path.dirname(__file__), "rst", "*.t")):
+    test_name = "test_%s" % os.path.basename(fname)[:-1].replace("-", "_")
     setattr(MiniRSTTest, test_name, build_test(fname)) 
 

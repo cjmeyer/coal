@@ -32,6 +32,24 @@ _option_re = re.compile(
      )*)                       # Optional match more than one option
      (?:\ *$|\ \ +)            # Match to the end of the line or description""",
     re.VERBOSE)
+_admonition_re = re.compile(
+    r"\.\. (attention|caution|danger|error|hint|important|note|tip|warning):: *",
+    re.IGNORECASE)
+_interpret_re = re.compile(
+    r":\w+:`\w+`|`\w+`:\w+:")
+
+
+_admonitions = {
+    "attention":"Attention:",
+    "caution":"Caution:",
+    "danger":"Danger!",
+    "error":"Error:",
+    "hint":"Hint:",
+    "important":"Important:",
+    "note":"Note:",
+    "tip":"Tip:",
+    "warning":"Warning!"
+}
 
 
 def _wrap(s, width, indent, subindent=None):
@@ -40,6 +58,9 @@ def _wrap(s, width, indent, subindent=None):
 
 
 def simple_block(src):
+    """
+    Parses out a simple block of continuous lines of text.
+    """
     for i, v in enumerate(src):
         if not v[1]:
             return src[:i], src[i:]
@@ -145,7 +166,6 @@ def parse_container(src):
     if not (len(src) > 2 and src[1][1] == "" and
             src[0][1].startswith(".. container::")):
         return False, None, src
-
     name = src.pop(0)[1][14:].strip()
     nested, src = nested_block(src)
     body = parse_body(nested)
@@ -155,6 +175,28 @@ def parse_container(src):
             return body(width, indent, keep=keep, **kw)
 
     return True, container, src
+
+
+def parse_admonition(src):
+    """
+    Parse admonition blocks.
+
+    Admonition blocks contain specially marked topics. This are marked similar
+    to containers but are rendered so as to draw attention to the text. All
+    valid admonitions are defined in the ``_admonitions`` dictionary which map
+    the understood admonition directives to their topic titles.
+    """
+    m = _admonition_re.match(src[0][1])
+    if not m:
+        return False, None, src
+    title = _admonitions[m.group(1).lower()]
+    nested, src = nested_block(src, shift_first=m.end(0))
+    body = parse_body(nested)
+
+    def admonition(width, indent, **kw):
+        return "%s%s\n%s" % (indent, title, body(width, indent + "  ", **kw))
+
+    return True, admonition, src
 
 
 def parse_list(item_match, src, max_keywidth=None, min_space=1, vspace=False):
@@ -218,21 +260,26 @@ def match_list(item_re, src):
         return None
     return ListItemMatch(m.group(1), m.end(0))
 
+# Match and parse bullet and numbered lists.
 def match_bullet(src):
     return match_list(_bullet_re, src)
 def parse_bullet(src):
     return parse_list(match_bullet, src)
 
+# Match and parse *nix style option lists.
 def match_option(src):
     return match_list(_option_re, src)
 def parse_option(src):
     return parse_list(match_option, src, max_keywidth=14, min_space=2)
 
+# Match and parse field lists.
 def match_field(src):
     return match_list(_field_re, src)
 def parse_field(src):
     return parse_list(match_field, src, max_keywidth=14, min_space=2)
 
+# Match definition lists. Note that definition list matching must be performed
+# after all other lists matches are attempted and prior to matching a paragraph.
 def match_definition(src):
     if len(src) > 1 and src[0][0] < src[1][0]:
         return ListItemMatch(src[0][1], len(src[0][1]))
@@ -289,6 +336,7 @@ _transitions = [
     parse_blank,
     parse_nested,
     parse_container,
+    parse_admonition,
     parse_bullet,
     parse_option,
     parse_field,
