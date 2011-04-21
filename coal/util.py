@@ -10,11 +10,32 @@ import error
 
 
 def mkdir(p):
+    """
+    Create a new directory and parents.
+
+    This function is equivalent to the shell command ``mkdir -p``. It will also
+    make sure that the created directory has a mode of 0755. If the directory
+    already exists (whether as a directory or file), the directory is not
+    created and no error is generated.
+    """
     if not os.path.exists(p):
         os.makedirs(p, 0755)
 
 
 def checksignature(fn, *args, **kw):
+    """
+    Throws an exception if the given function is called with invalid arguments.
+
+    The provided function, ``fn``, is called, passing in the list of positional
+    arguments and keyword arguments. If an exception is thrown as a result of
+    calling the function with an incorrect set of arguments, it will be result
+    in a ``SignatureError`` exception being thrown instead.
+
+    :Parameters:
+      - `fn`: The function to call
+      - `*args`: All position arguments to pass to ``fn``
+      - `**kw`: All keyword arguments to pass to ``fn``
+    """
     try:
         fn(*args, **kw)
     except TypeError as e:
@@ -24,11 +45,27 @@ def checksignature(fn, *args, **kw):
 
 
 def wrap(s, width, indent="", subindent=""):
+    """
+    Wraps a string at the specified width and indentation.
+
+    :Parameters:
+      - `s`: The string to wrap
+      - `width`: The width to wrap the string to, in characters
+      - `indent`: The indentation string of the first line
+      - `subindent`: The indentation of all lines after the first
+    """
     return textwrap.fill(s, width=width, initial_indent=indent,
                          subsequent_indent=subindent)
 
 
 def termwidth():
+    """
+    Returns the width of the current console in number of characters.
+
+    This function currently only works for *nix systems. It operates by using
+    the *nix standard ``ioctl`` calls to determine the size of the window. If
+    the system is not a *nix system the default value of 80 is returned.
+    """
     try:
         import fcntl, termios
         for dev in (sys.stdin, sys.stdout, sys.stderr):

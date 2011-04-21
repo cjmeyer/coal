@@ -59,9 +59,10 @@ class ShellTest(ShellBaseTest):
         self.shell.write("Hello World!", keyword1=1, keyword2=2, keyword3=3)
 
     def test_write_with_indent(self):
-        self.shell.indent = 2
-        self.shell.write("Hello World!")
-        self.assertEqual(self.stdout, "  Hello World!")
+        with self.shell.indent(2):
+            self.shell.write("Hello World 1!")
+        self.shell.write("\nHello World 2!")
+        self.assertEqual(self.stdout, "  Hello World 1!\nHello World 2!")
 
     def test_write_err(self):
         self.shell.write_err("ERROR!")
@@ -69,11 +70,6 @@ class ShellTest(ShellBaseTest):
 
     def test_write_err_all_keywords(self):
         self.shell.write_err("ERROR!", keyword1=1, keyword2=2, keyword3=3)
-        
-    def test_write_err_with_indent(self):
-        self.shell.indent = 2
-        self.shell.write("ERROR!")
-        self.assertEqual(self.stdout, "  ERROR!")
 
     def test_prompt(self):
         self.stdin = "Bob Jones\n"
@@ -180,8 +176,8 @@ class ShellTest(ShellBaseTest):
     def test_quiet_default(self):
         self.assertEqual(self.shell.quiet, False)
 
-    def test_indent_default(self):
-        self.assertEqual(self.shell.indent, 0)
+#    def test_indent_default(self):
+#        self.assertEqual(self.shell.indent, 0)
 
     def _test_output_kw_options(self, fn_name, wr_name):
         with patch.object(self.shell, wr_name) as write:

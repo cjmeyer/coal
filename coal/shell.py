@@ -17,19 +17,20 @@ class Shell(object):
         self.verbose = False
         self.quiet = False
 
-        self.indent = 0
+        self._indent = ""
         self.width = None
 
     def termwidth(self):
         return self.width or util.termwidth()
 
-    @property
-    def indent(self):
-        return len(self._indent)
-
-    @indent.setter
-    def indent(self, value):
-        self._indent = " " * max(value, 0)
+    def indent(self, indent_):
+        old_indent = self._indent
+        class context(object):
+            def __enter__(self_):
+                self._indent = self._indent + (indent_ * " ")
+            def __exit__(self_, exc_type, exc_value, exc_tb):
+                self._indent = old_indent
+        return context()
 
     def write(self, msg, **opts):
         """
