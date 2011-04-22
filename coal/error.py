@@ -22,3 +22,7 @@ class RSTParseError(Exception):
     """Exception raised due to error parsing RST source."""
     pass
 
+class CmdParseError(Exception):
+    """Exception raised due to error parsing command arguments."""
+    pass
+
