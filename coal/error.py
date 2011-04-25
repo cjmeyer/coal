@@ -6,10 +6,6 @@ class SignatureError(Exception):
     """Exception raised due to a command function called with bad signature."""
     pass
 
-class HelpError(Exception):
-    """Exception raised due to an error finding a help topic."""
-    pass
-
 class AbortError(Exception):
     """Exception raised due to an 'abort' condition."""
     pass
@@ -23,6 +19,6 @@ class RSTParseError(Exception):
     pass
 
 class CmdParseError(Exception):
-    """Exception raised due to error parsing command arguments."""
+    """Exception raised due to error parsing the command line options."""
     pass
 

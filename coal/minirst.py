@@ -1,6 +1,12 @@
 # minirst.py
 """
-Minimal reStructuredText parser to parse command docstrings.
+Minimal reStructuredText parser. The parser handles a strict sub-set of regular
+reStructuredText syntax. The idea of a minimal parser was from Mercurial which
+uses a similar type of parser for parsing Python docstrings to generate the
+command line help. While the concepts are similar the approaches are quite
+different.
+
+The current constructs supported are:
 
   - Paragraphs
   - Enumerated Lists (no auto-numbering)
@@ -10,6 +16,22 @@ Minimal reStructuredText parser to parse command docstrings.
   - Definition Lists
   - Literal Blocks
   - Containers
+
+The source text is first pre-processed into a list of 2-tuples where each
+2-tuple represents a source text line as the line identation and the lines text
+with leading and trailing whitespace removed. All processing of the source lines
+are performed on this list of 2-tuples.
+
+Parsing of the source text is performed in a recursive manner by a set of parse
+functions. Each of the parse functions returns a 3-tuple: the first element is a
+boolean indicating if the match and successive parsing succeeded, a format
+function that when called will generate the formatted output of the parsed
+source text, and the remaining source to be parsed. This allowes the true nested
+nature of the reStructuredText to be maintained for more accurate formatting
+while keeping the parsing simple and concise.
+
+Additional elements can be added by adding appropriate parse functions to the
+``_transitions`` list.
 """
 
 
@@ -291,7 +313,7 @@ def parse_definition(src):
 def inline_code(s):
     return "\"%s\"" % s
 
-_inline_handlers = [
+inline_handlers = [
     ("code", inline_code)
 ]
 
@@ -305,7 +327,7 @@ def _parse_interpreted(src):
     where "id" is some sort of identifier used to specify how to format the
     specified text.
     """
-    for h in _inline_handlers:
+    for h in inline_handlers:
         def interpret(m):
             return h[1](m.group(1))
         src = re.sub(r":%s:`([\w ]+)`" % h[0], interpret, src)
