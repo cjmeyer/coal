@@ -31,7 +31,7 @@ class opt(object):
           - `cmd`: The ``Command`` object to update
         """
         if self.store is None:
-            handler_ = getattr(cmd, "opt_%s" % self.name.replace("-", "_"))
+            handler_ = getattr(cmd, 'opt_%s' % self.name.replace('-', '_'))
             takes_arg = _getargspec(handler_).args != 0
             if takes_arg:
                 def handler(arg):
@@ -59,7 +59,8 @@ class opt(object):
 
 
 class Command(object):
-    def __init__(self):
+    def __init__(self, parent=None):
+        self.parent = parent
         self.options = {}
         self._short = []
         self._long = []
@@ -67,18 +68,36 @@ class Command(object):
         for opt in self.opts:
             handler, takes_arg = opt.build_handler(self)
             if opt.short:
-                flag = "%s%s" % (opt.short, takes_arg and ":" or "")
+                flag = '%s%s' % (opt.short, takes_arg and ':' or '')
                 self._short.append(flag)
-                self._handlers["-%s" % opt.short] = handler
-            flag = "%s%s" % (opt.name, takes_arg and "=" or "")
+                self._handlers['-%s' % opt.short] = handler
+            flag = '%s%s' % (opt.name, takes_arg and '=' or '')
             self._long.append(flag)
-            self._handlers["--%s" % opt.name] = handler
+            self._handlers['--%s' % opt.name] = handler
             self.options[opt.name] = None
 
+    @property
+    def _options(self):
+        pass
+
+    @property
+    def _cmdtable(self):
+        return getattr(self, 'cmds', {})
+
+    def _findcmd(self, cmdname):
+        for cmd, cls in self._cmdtable.iteritems():
+            if cmdname in cmd.split('|'):
+                return cls()
+
     def parse(self, args):
-        opts, args = getopt.getopt(args, "".join(self._short), self._long)
+        opts, args = getopt.getopt(args, ''.join(self._short), self._long)
         for opt, arg in opts:
             self._handlers[opt](arg)
+        if args and self._cmdtable:
+            self.subcmd = self._findcmd(args.pop(0))
+            self.subcmd.parent = self
+            self.subcmd.parse(args)
+            args = []
         self.parse_args(*args)
 
     def __getitem__(self, key):

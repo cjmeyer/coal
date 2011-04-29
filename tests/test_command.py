@@ -93,11 +93,25 @@ class CommandOptTest(unittest.TestCase):
 
 class CommandSubCmdTest(unittest.TestCase):
     def setUp(self):
+        self.sub_sub_command1 = mock.Mock()
+        self.sub_command1 = mock.Mock()
+        self.sub_command2 = mock.Mock()
+        self.app_command = mock.Mock
+        
+        def parse_args(handler):
+            def decorator(cls):
+                cls.parse_args = getattr(self, handler)
+                cls.name = handler
+                return cls
+            return decorator
+
+        @parse_args('sub_sub_command1')
         class SubSubCommand1(Command):
             opts = [
                 opt('echo', 'e', store=str),
                 opt('fox-trot', 'f', store=True) ]
 
+        @parse_args('sub_command1')
         class SubCommand1(Command):
             cmds = {
                 'cmd1-1':SubSubCommand1 }
@@ -106,12 +120,15 @@ class CommandSubCmdTest(unittest.TestCase):
                 opt('delta', 'd', store=float),
                 opt('echo', 'e', store={'a':4, 'b':3, 'c':2, 'd':1}) ]
 
+        @parse_args('sub_command2')
         class SubCommand2(Command):
             opts = [
                 opt('charlie', 'c', store=False),
                 opt('delta', 'd', store=str),
-                opt('golf', 'g', store=int) ]
+                opt('golf', 'g', store=True),
+                opt('hotel', 'h', store=int) ]
 
+        @parse_args('app_command')
         class AppCommand(Command):
             cmds = {
                 'cmd1|command1':SubCommand1,
@@ -122,32 +139,50 @@ class CommandSubCmdTest(unittest.TestCase):
                 opt('charlie', 'c', store=1),
                 opt('delta', 'd', store=str) ]
 
-    def _test(self):
-        pass
+        self.handlers = {
+            SubSubCommand1:self.sub_sub_command1,
+            SubCommand1:self.sub_command1,
+            SubCommand2:self.sub_command2,
+            AppCommand:self.app_command }
+
+        self.app = AppCommand()
+
+    def _verify(self, cmd, args, opts, subcmds):
+        for key, val in opts.iteritems():
+            self.assertEqual(cmd[key], val)
+        if not subcmds:
+            getattr(self, cmd.name).assert_called_once_with(*args)
+        else:
+            self.assertEqual(cmd.subcmd.name, subcmds[0][0])
+            self._verify(cmd.subcmd, args, subcmds[0][1], subcmds[1:])
+
+    def _test(self, cmd, args, opts, *subcmds):
+        self.app.parse(cmd.split())
+        self._verify(self.app, args, opts, subcmds)
 
     def test_cmd_parse_simple(self):
-        pass
+        self._test('cmd2', [], {}, ('sub_command2', {}))
 
     def test_cmd_parse_args(self):
-        pass
+        self._test('cmd2 arg1 arg2', ['arg1', 'arg2'], {}, ('sub_command2', {}))
 
     def test_cmd_parse_short_flag(self):
-        pass
+        self._test('cmd2 -g', [], {}, ('sub_command2', {'golf':True}))
 
     def test_cmd_parse_short_option(self):
-        pass
+        self._test('cmd2 -h 101', [], {}, ('sub_command2', {'hotel':101}))
 
     def test_cmd_parse_long_flag(self):
-        pass
+        self._test('cmd2 --golf', [], {}, ('sub_command2', {'golf':True}))
 
     def test_cmd_parse_long_option(self):
-        pass
+        self._test('cmd2 --hotel 321', [], {}, ('sub_command2', {'hotel':321}))
 
     def test_cmd_parse_global_flag_before(self):
-        pass
+        self._test('-a cmd2', [], {'alpha':True}, ('sub_command2', {}))
 
     def test_cmd_parse_global_flag_after(self):
-        pass
+        self._test('cmd2 -a', [], {'alpha':True}, ('sub_command2', {}))
 
     def test_cmd_parse_global_option_before(self):
         pass
