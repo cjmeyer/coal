@@ -11,109 +11,124 @@ except:
     _getargspec = inspect.getargspec
 
 
-class opt(object):
-    def __init__(self, name, short, store=None):
-        self.name = name
-        self.short = short
-        self.store = store
+class _OptHandler(object):
+    def __init__(self, cmd, long_, short_, store=None):
+        self._cmd = cmd
+        self._long = long_
+        self._short = short_
+        self._argreq = False
 
-    def build_handler(self, cmd):
-        """
-        Build an option argument handler function.
-
-        This builds a function that is able to parse an option argument and
-        update the command instance appropriately. If the option stores a
-        constant, then the provided handler will not take an argument. If the
-        option stores a value or uses a command option method, the handler will
-        accept a single string argument.
-
-        :Parameters:
-          - `cmd`: The ``Command`` object to update
-        """
-        if self.store is None:
-            handler_ = getattr(cmd, 'opt_%s' % self.name.replace('-', '_'))
-            takes_arg = _getargspec(handler_).args != 0
-            if takes_arg:
-                def handler(arg):
-                    handler_(arg)
-            else:
-                def handler(arg):
-                    handler_()
-
-        elif isinstance(self.store, dict):
-            takes_arg = True
+        if store is None:
+            fn = getattr(cmd, 'opt_%s' % self._long.replace('-', '_'))
+            self._argreq = _getargspec(fn).args != 0
             def handler(arg):
-                cmd[self.name] = self.store[arg]
+                 fn(arg) if self._argreq else fn()
 
-        elif callable(self.store):
-            takes_arg = True
+        elif isinstance(store, dict):
+            self._argreq = True
             def handler(arg):
-                cmd[self.name] = self.store(arg)
+                self._cmd[self._long] = store[arg]
+
+        elif callable(store):
+            self._argreq = True
+            def handler(arg):
+                self._cmd[self._long] = store(arg)
 
         else:
-            takes_arg = False
+            self._argreq = False
             def handler(arg):
-                cmd[self.name] = self.store
+                self._cmd[self._long] = store
 
-        return handler, takes_arg
+        self._handler = handler
+
+    @property
+    def long_opt(self):
+        return self._long
+
+    @property
+    def short_opt(self):
+        return self._short or ''
+
+    @property
+    def long_getopt(self):
+        return '%s%s' % (self._long, self._argreq and '=' or '')
+
+    @property
+    def short_getopt(self):
+        if not self._short:
+            return ''
+        return '%s%s' % (self._short, self._argreq and ':' or '')
+
+    def __call__(self, arg):
+        return self._handler(arg)
+
+
+class Opt(object):
+    def __init__(self, long_, short_, store=None):
+        self._long = long_
+        self._short = short_
+        self._store = store
+
+    def build_handler(self, cmd):
+        return _OptHandler(cmd, self._long, self._short, self._store)
 
 
 class Command(object):
     def __init__(self, parent=None):
-        self.parent = parent
-        self.options = {}
-        self._short = []
-        self._long = []
-        self._handlers = {}
-        for long_, short_, takes_arg, handler in self._options():
-            flag = '%s%s' % (long_, takes_arg and '=' or '')
-            self._long.append(flag)
-            self._handlers['--%s' % long_] = handler
-            if short_:
-                flag = '%s%s' % (short_, takes_arg and ':' or '')
-                self._short.append(flag)
-                self._handlers['-%s' % short_] = handler
-            self.options[long_] = None
-
-    def _options(self):
-        short_cache = {}
-        long_cache = {}
-        opts = []
-        for opt in self.opts:
-            handler, takes_arg = opt.build_handler(self)
-            long_cache[opt.name] = True
-            if opt.short:
-                short_cache[opt.short] = True
-            opts.append((opt.name, opt.short, takes_arg, handler))
-        if self.parent:
-            for opt in self.parent._options():
-                if opt[0] not in long_cache:
-                    long_cache[opt[0]] = True
-                    long_ = opt[0]
-                    if opt[1] not in short_cache:
-                        short_cache[opt[1]] = True
-                        short_ = opt[1]
-                    else:
-                        short_ = ''
-                    opts.append((long_, short_, opt[2], opt[3]))
-        return opts
+        self._parent = parent
+        self._handlers = []
+        self._options = {}
+        options = getattr(self, 'opts', [])
+        for opt in options:
+            handler = opt.build_handler(self)
+            self._handlers.append(handler)
+            self._options[handler.long_opt] = None
 
     @property
-    def _cmdtable(self):
+    def _merged_optlist(self):
+        if self._parent:
+            short_opts, long_opts = self._parent._merged_optlist
+        else:
+            short_opts, long_opts = {}, {}
+        for opt in self._handlers:
+            if opt.short_opt:
+                short_opts[opt.short_opt] = opt
+            long_opts[opt.long_opt] = opt
+        return short_opts, long_opts
+
+    def _parse(self, args):
+        long_getopts = []
+        short_getopts = []
+        long_, short_ = self._merged_optlist
+        for opt, handler in long_.iteritems():
+            long_getopts.append(handler.long_getopt)
+        for opt, handler in short_.iteritems():
+            short_getopts.append(handler.short_getopt)
+        long_.update(short_)
+        _getopt = self.cmdtable and getopt.getopt or getopt.gnu_getopt
+        opts, args = _getopt(args, ''.join(short_getopts), long_getopts)
+        for opt, arg in opts:
+            opt = opt[2:] if opt[1] == '-' else opt[1:]
+            long_[opt](arg)
+        return args
+
+    @property
+    def cmdtable(self):
         return getattr(self, 'cmds', {})
 
-    def _findcmd(self, cmdname):
-        for cmd, cls in self._cmdtable.iteritems():
+    @property
+    def options(self):
+        return self._options
+
+    def findcmd(self, cmdname):
+        for cmd, cls in self.cmdtable.iteritems():
             if cmdname in cmd.split('|'):
                 return cls(self)
 
     def parse(self, args):
-        _getopt = not self._cmdtable and getopt.gnu_getopt or getopt.getopt
-        opts, args = _getopt(args, ''.join(self._short), self._long)
-        for opt, arg in opts:
-            self._handlers[opt](arg)
-        if args and self._cmdtable:
-            self.subcmd = self._findcmd(args.pop(0))
+        args = self._parse(args)
+        if args and self.cmdtable:
+            self.subcmd = self.findcmd(args.pop(0))
             self.subcmd.parse(args)
             args = []
         self.parse_args(*args)
@@ -122,5 +137,5 @@ class Command(object):
         return self.options.get(key, None)
 
     def __setitem__(self, key, value):
-        self.options[key] = value
+        self._options[key] = value
 

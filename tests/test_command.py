@@ -6,7 +6,7 @@ import mock
 import unittest2 as unittest
 
 from coal import command, error
-from coal.command import Command, opt
+from coal.command import Command, Opt
 
 
 class CommandOptTest(unittest.TestCase):
@@ -18,12 +18,12 @@ class CommandOptTest(unittest.TestCase):
 
         class TestCommand1(Command):
             opts = [
-                opt('alpha', 'a', store=True),
-                opt('bravo', 'b', store=True),
-                opt('charlie', 'c', store=self.opt_c),
-                opt('delta', 'd', store={'00':1, '01':2, '10':3, '11':4}),
-                opt('echo', 'e', store=int),
-                opt('fox-trot', 'f')
+                Opt('alpha', 'a', store=True),
+                Opt('bravo', 'b', store=True),
+                Opt('charlie', 'c', store=self.opt_c),
+                Opt('delta', 'd', store={'00':1, '01':2, '10':3, '11':4}),
+                Opt('echo', 'e', store=int),
+                Opt('fox-trot', 'f')
             ]
             def opt_fox_trot(self_, arg):
                 try:
@@ -108,25 +108,25 @@ class CommandSubCmdTest(unittest.TestCase):
         @parse_args('sub_sub_command1')
         class SubSubCommand1(Command):
             opts = [
-                opt('echo', 'e', store=str),
-                opt('fox-trot', 'f', store=True) ]
+                Opt('echo', 'e', store=str),
+                Opt('fox-trot', 'f', store=True) ]
 
         @parse_args('sub_command1')
         class SubCommand1(Command):
             cmds = {
                 'cmd1-1':SubSubCommand1 }
             opts = [
-                opt('charlie', 'c', store=True),
-                opt('delta', 'd', store=float),
-                opt('echo', 'e', store={'a':4, 'b':3, 'c':2, 'd':1}) ]
+                Opt('charlie', 'c', store=True),
+                Opt('delta', 'd', store=float),
+                Opt('echo', 'e', store={'a':4, 'b':3, 'c':2, 'd':1}) ]
 
         @parse_args('sub_command2')
         class SubCommand2(Command):
             opts = [
-                opt('charlie', 'c', store=False),
-                opt('delta', 'd', store=str),
-                opt('golf', 'g', store=True),
-                opt('hotel', 'h', store=int) ]
+                Opt('charlie', 'c', store=False),
+                Opt('delta', 'd', store=str),
+                Opt('golf', 'g', store=True),
+                Opt('hotel', 'h', store=int) ]
 
         @parse_args('app_command')
         class AppCommand(Command):
@@ -134,10 +134,10 @@ class CommandSubCmdTest(unittest.TestCase):
                 'cmd1|command1':SubCommand1,
                 'cmd2|command2':SubCommand2 }
             opts = [
-                opt('alpha', 'a', store=True),
-                opt('bravo', 'b', store=int),
-                opt('charlie', 'c', store=1),
-                opt('delta', 'd', store=str) ]
+                Opt('alpha', 'a', store=True),
+                Opt('bravo', 'b', store=int),
+                Opt('charlie', 'c', store=1),
+                Opt('delta', 'd', store=str) ]
 
         self.app = AppCommand()
 
