@@ -84,6 +84,33 @@ class Command(object):
             self._handlers.append(handler)
             self._options[handler.long_opt] = None
 
+    def __getitem__(self, key):
+        return self.options.get(key, None)
+
+    def __setitem__(self, key, value):
+        self._options[key] = value
+
+    @property
+    def cmdtable(self):
+        return getattr(self, 'cmds', {})
+
+    @property
+    def options(self):
+        return self._options
+
+    def findcmd(self, cmdname):
+        for cmd, cls in self.cmdtable.iteritems():
+            if cmdname in cmd.split('|'):
+                return cls(self)
+
+    def parse(self, args):
+        args = self._parse(args)
+        if args and self.cmdtable:
+            self.subcmd = self.findcmd(args.pop(0))
+            self.subcmd.parse(args)
+            args = []
+        self.parse_args(*args)
+
     @property
     def _merged_optlist(self):
         if self._parent:
@@ -111,31 +138,4 @@ class Command(object):
             opt = opt[2:] if opt[1] == '-' else opt[1:]
             long_[opt](arg)
         return args
-
-    @property
-    def cmdtable(self):
-        return getattr(self, 'cmds', {})
-
-    @property
-    def options(self):
-        return self._options
-
-    def findcmd(self, cmdname):
-        for cmd, cls in self.cmdtable.iteritems():
-            if cmdname in cmd.split('|'):
-                return cls(self)
-
-    def parse(self, args):
-        args = self._parse(args)
-        if args and self.cmdtable:
-            self.subcmd = self.findcmd(args.pop(0))
-            self.subcmd.parse(args)
-            args = []
-        self.parse_args(*args)
-
-    def __getitem__(self, key):
-        return self.options.get(key, None)
-
-    def __setitem__(self, key, value):
-        self._options[key] = value
 
