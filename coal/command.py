@@ -235,15 +235,18 @@ class Command(object):
         Parses the list of command line options against the options/flags and
         sub-commands of this ``Command`` sub-class. If no options are provided,
         then the system list ``sys.argv[1:]`` is used.
+
+        Will call ``parse_args`` with any un-parsed positional arguments.
         """
         if args is None:
             args = sys.argv[1:]
         args = self._parse(args)
-        if args and self.cmdtable:
-            self.subcmd = self.findcmd(args.pop(0))
-            self.subcmd.parse(args)
-        else:
-            self.parse_args(*args)
+        if args:
+            if self.cmdtable:
+                self.subcmd = self.findcmd(args.pop(0))
+                self.subcmd.parse(args)
+            else:
+                self.parse_args(*args)
 
     @property
     def _merged_optlist(self):
