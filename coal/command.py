@@ -4,6 +4,9 @@
 import getopt
 import inspect
 import sys
+import util
+
+from error import SignatureError, CommandError
 
 
 try:
@@ -75,7 +78,10 @@ class _OptHandler(object):
             # Enumerated option.
             self._argreq = True
             def handler(arg):
-                self._cmd[self._long] = store[arg]
+                try:
+                    self._cmd[self._long] = store[arg]
+                except KeyError as e:
+                    raise ValueError(str(e))
 
         elif callable(store):
             # Option with a coercion function.
@@ -243,10 +249,16 @@ class Command(object):
         args = self._parse(args)
         if args:
             if self.cmdtable:
-                self.subcmd = self.findcmd(args.pop(0))
+                cmdname = args.pop(0)
+                self.subcmd = self.findcmd(cmdname)
+                if self.subcmd is None:
+                    raise CommandError('unknown command: %s' % cmdname)
                 self.subcmd.parse(args)
             else:
-                self.parse_args(*args)
+                try:
+                    util.checksignature(self.parse_args, *args)
+                except SignatureError as e:
+                    raise CommandError('wrong number of arguments')
 
     @property
     def _merged_optlist(self):
@@ -293,12 +305,20 @@ class Command(object):
         # Build the option-to-handler map.
         long_.update(short_)
 
-        # Parse the command line and run the option actions.
+        # Parse the command line argumenst.
         _getopt = self.cmdtable and getopt.getopt or getopt.gnu_getopt
-        opts, args = _getopt(args, ''.join(short_getopts), long_getopts)
+        try:
+            opts, args = _getopt(args, ''.join(short_getopts), long_getopts)
+        except getopt.GetoptError as e:
+            raise CommandError(str(e))
+
         for opt, arg in opts:
-            opt = opt[2:] if opt[1] == '-' else opt[1:]
-            long_[opt](arg)
+            key = opt[2:] if opt[1] == '-' else opt[1:]
+            try:
+                long_[key](arg)
+            except ValueError as e:
+                raise CommandError(
+                    'invalid argument to option %s: %s' % (opt, arg))
 
         return args
 

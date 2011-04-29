@@ -35,6 +35,9 @@ class CommandOptTest(unittest.TestCase):
 
         self.cmd = TestCommand1()
 
+    def parse(self, cmd):
+        self.cmd.parse(cmd.split())
+
     def _test(self, cmd, args_, opts_):
         opts = {
             'alpha':None,
@@ -44,9 +47,10 @@ class CommandOptTest(unittest.TestCase):
             'echo':None,
             'fox-trot':None }
         opts.update(opts_)
-        self.cmd.parse(cmd.split())
+        self.parse(cmd)
         self.assertEqual(self.cmd.options, opts)
-        self.parse_args.assert_called_once_with(*args_)
+        if args_:
+            self.parse_args.assert_called_once_with(*args_)
 
     def test_opt_parse_empty(self):
         self._test('', [], {})
@@ -82,13 +86,13 @@ class CommandOptTest(unittest.TestCase):
         self._test('--fox-trot ARG1 --fox-trot ARG2', [], {'fox-trot':['ARG1', 'ARG2']})
 
     def test_opt_parse_invalid_flag(self):
-        pass
+        self.assertRaises(error.CommandError, self.parse, '--zulu')
 
     def test_opt_parse_invalid_option_arg_int(self):
-        pass
+        self.assertRaises(error.CommandError, self.parse, '-eARG')
 
     def test_opt_parse_invalid_option_arg_enumeration(self):
-        pass
+        self.assertRaises(error.CommandError, self.parse, '--delta=123')
 
 
 class CommandSubCmdTest(unittest.TestCase):
@@ -141,17 +145,21 @@ class CommandSubCmdTest(unittest.TestCase):
 
         self.app = AppCommand()
 
+    def parse(self, cmd):
+        self.app.parse(cmd.split())
+
     def _verify(self, cmd, args, opts, subcmds):
         for key, val in opts.iteritems():
             self.assertEqual(cmd[key], val)
         if not subcmds:
-            getattr(self, cmd.name).assert_called_once_with(*args)
+            if args:
+                getattr(self, cmd.name).assert_called_once_with(*args)
         else:
             self.assertEqual(cmd.subcmd.name, subcmds[0][0])
             self._verify(cmd.subcmd, args, subcmds[0][1], subcmds[1:])
 
     def _test(self, cmd, args, opts, *subcmds):
-        self.app.parse(cmd.split())
+        self.parse(cmd)
         self._verify(self.app, args, opts, subcmds)
 
     def test_cmd_parse_no_subcommand(self):
@@ -208,5 +216,5 @@ class CommandSubCmdTest(unittest.TestCase):
                 ('sub_sub_command1', {'echo':'Hello'}))
 
     def test_cmd_parse_unknown_command(self):
-        pass
+        self.assertRaises(error.CommandError, self.parse, 'cmd3')
 
