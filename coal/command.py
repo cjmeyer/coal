@@ -65,20 +65,38 @@ class Command(object):
         self._short = []
         self._long = []
         self._handlers = {}
+        for long_, short_, takes_arg, handler in self._options():
+            flag = '%s%s' % (long_, takes_arg and '=' or '')
+            self._long.append(flag)
+            self._handlers['--%s' % long_] = handler
+            if short_:
+                flag = '%s%s' % (short_, takes_arg and ':' or '')
+                self._short.append(flag)
+                self._handlers['-%s' % short_] = handler
+            self.options[long_] = None
+
+    def _options(self):
+        short_cache = {}
+        long_cache = {}
+        opts = []
         for opt in self.opts:
             handler, takes_arg = opt.build_handler(self)
+            long_cache[opt.name] = True
             if opt.short:
-                flag = '%s%s' % (opt.short, takes_arg and ':' or '')
-                self._short.append(flag)
-                self._handlers['-%s' % opt.short] = handler
-            flag = '%s%s' % (opt.name, takes_arg and '=' or '')
-            self._long.append(flag)
-            self._handlers['--%s' % opt.name] = handler
-            self.options[opt.name] = None
-
-    @property
-    def _options(self):
-        pass
+                short_cache[opt.short] = True
+            opts.append((opt.name, opt.short, takes_arg, handler))
+        if self.parent:
+            for opt in self.parent._options():
+                if opt[0] not in long_cache:
+                    long_cache[opt[0]] = True
+                    long_ = opt[0]
+                    if opt[1] not in short_cache:
+                        short_cache[opt[1]] = True
+                        short_ = opt[1]
+                    else:
+                        short_ = ''
+                    opts.append((long_, short_, opt[2], opt[3]))
+        return opts
 
     @property
     def _cmdtable(self):
@@ -87,7 +105,7 @@ class Command(object):
     def _findcmd(self, cmdname):
         for cmd, cls in self._cmdtable.iteritems():
             if cmdname in cmd.split('|'):
-                return cls()
+                return cls(self)
 
     def parse(self, args):
         opts, args = getopt.getopt(args, ''.join(self._short), self._long)
@@ -95,7 +113,6 @@ class Command(object):
             self._handlers[opt](arg)
         if args and self._cmdtable:
             self.subcmd = self._findcmd(args.pop(0))
-            self.subcmd.parent = self
             self.subcmd.parse(args)
             args = []
         self.parse_args(*args)

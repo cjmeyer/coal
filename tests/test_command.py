@@ -185,25 +185,25 @@ class CommandSubCmdTest(unittest.TestCase):
         self._test('cmd2 -a', [], {'alpha':True}, ('sub_command2', {}))
 
     def test_cmd_parse_global_option_before(self):
-        pass
+        self._test('-b 101 cmd2', [], {'bravo':101}, ('sub_command2', {}))
 
     def test_cmd_parse_global_option_after(self):
-        pass
+        self._test('cmd2 -b 123', [], {'bravo':123}, ('sub_command2', {}))
 
     def test_cmd_parse_overridden_before(self):
-        pass
+        self._test('-c cmd2', [], {'charlie':1}, ('sub_command2', {}))
 
     def test_cmd_parse_overridden_after(self):
-        pass
+        self._test('cmd2 -c', [], {}, ('sub_command2', {'charlie':False}))
 
     def test_cmd_parse_overridden_both(self):
-        pass
+        self._test('-c cmd2 -c', [], {'charlie':1}, ('sub_command2', {'charlie':False}))
 
     def test_cmd_parse_aliases(self):
-        pass
+        self._test('command2', [], {}, ('sub_command2', {}))
 
     def test_cmd_parse_subsubcommand(self):
-        pass
+        self._test('cmd1 cmd1-1', [], {}, ('sub_command1', {}), ('sub_sub_command1', {}))
 
     def test_cmd_parse_unknown_command(self):
         pass
