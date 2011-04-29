@@ -108,7 +108,8 @@ class Command(object):
                 return cls(self)
 
     def parse(self, args):
-        opts, args = getopt.getopt(args, ''.join(self._short), self._long)
+        _getopt = not self._cmdtable and getopt.gnu_getopt or getopt.getopt
+        opts, args = _getopt(args, ''.join(self._short), self._long)
         for opt, arg in opts:
             self._handlers[opt](arg)
         if args and self._cmdtable:

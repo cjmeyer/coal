@@ -96,7 +96,7 @@ class CommandSubCmdTest(unittest.TestCase):
         self.sub_sub_command1 = mock.Mock()
         self.sub_command1 = mock.Mock()
         self.sub_command2 = mock.Mock()
-        self.app_command = mock.Mock
+        self.app_command = mock.Mock()
         
         def parse_args(handler):
             def decorator(cls):
@@ -139,12 +139,6 @@ class CommandSubCmdTest(unittest.TestCase):
                 opt('charlie', 'c', store=1),
                 opt('delta', 'd', store=str) ]
 
-        self.handlers = {
-            SubSubCommand1:self.sub_sub_command1,
-            SubCommand1:self.sub_command1,
-            SubCommand2:self.sub_command2,
-            AppCommand:self.app_command }
-
         self.app = AppCommand()
 
     def _verify(self, cmd, args, opts, subcmds):
@@ -159,6 +153,9 @@ class CommandSubCmdTest(unittest.TestCase):
     def _test(self, cmd, args, opts, *subcmds):
         self.app.parse(cmd.split())
         self._verify(self.app, args, opts, subcmds)
+
+    def test_cmd_parse_no_subcommand(self):
+        self._test('-cb 645', [], {'charlie':1, 'bravo':645})
 
     def test_cmd_parse_simple(self):
         self._test('cmd2', [], {}, ('sub_command2', {}))
@@ -204,6 +201,11 @@ class CommandSubCmdTest(unittest.TestCase):
 
     def test_cmd_parse_subsubcommand(self):
         self._test('cmd1 cmd1-1', [], {}, ('sub_command1', {}), ('sub_sub_command1', {}))
+
+    def test_cmd_parse_subsubcommand_args_and_options(self):
+        self._test('-c cmd1 -e a cmd1-1 arg1 -d 1.0 -a -e Hello', ['arg1'], {'charlie':1},
+                ('sub_command1', {'delta':1.0, 'echo':4}),
+                ('sub_sub_command1', {'echo':'Hello'}))
 
     def test_cmd_parse_unknown_command(self):
         pass
