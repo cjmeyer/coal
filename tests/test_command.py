@@ -49,8 +49,7 @@ class CommandOptTest(unittest.TestCase):
         opts.update(opts_)
         self.parse(cmd)
         self.assertEqual(self.cmd.options, opts)
-        if args_:
-            self.parse_args.assert_called_once_with(*args_)
+        self.parse_args.assert_called_once_with(*args_)
 
     def test_opt_parse_empty(self):
         self._test('', [], {})
@@ -152,8 +151,7 @@ class CommandSubCmdTest(unittest.TestCase):
         for key, val in opts.iteritems():
             self.assertEqual(cmd[key], val)
         if not subcmds:
-            if args:
-                getattr(self, cmd.name).assert_called_once_with(*args)
+            getattr(self, cmd.name).assert_called_once_with(*args)
         else:
             self.assertEqual(cmd.subcmd.name, subcmds[0][0])
             self._verify(cmd.subcmd, args, subcmds[0][1], subcmds[1:])
@@ -217,4 +215,56 @@ class CommandSubCmdTest(unittest.TestCase):
 
     def test_cmd_parse_unknown_command(self):
         self.assertRaises(error.CommandError, self.parse, 'cmd3')
+
+
+class CommandInheritanceTest(unittest.TestCase):
+    def setUp(self):
+        class BaseCommand(Command):
+            opts = [
+                Opt('alpha', 'a', store=True),
+                Opt('bravo', 'b', store=int) ]
+
+        class TestCommand(BaseCommand):
+            opts = [
+                Opt('charlie', 'c', store=True),
+                Opt('delta', 'd', store=str) ]
+
+        self.cmd = TestCommand()
+
+    def parse(self, cmd):
+        self.cmd.parse(cmd.split())
+
+    def _test(self, cmd, opts):
+        self.parse(cmd)
+        for key, val in opts.iteritems():
+            self.assertEqual(self.cmd[key], val)
+
+    def test_non_base_flag(self):
+        self._test('--charlie', {'charlie':True})
+
+    def test_non_base_option(self):
+        self._test('-d ARG', {'delta':'ARG'})
+
+    def test_base_flag(self):
+        self._test('-a', {'alpha':True})
+
+    def test_base_option(self):
+        self._test('-b873', {'bravo':873})
+
+
+class CommandHelpTest(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    def test_help_command_normal(self):
+        pass
+
+    def test_help_command_verbose(self):
+        pass
+
+    def test_help_sub_command_normal(self):
+        pass
+
+    def test_help_sub_command_verbose(self):
+        pass
 

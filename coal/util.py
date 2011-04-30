@@ -44,6 +44,16 @@ def checksignature(fn, *args, **kw):
         raise
 
 
+def accumulate_class_list(cls, attr):
+    list_ = []
+    def _accumulate(cls, attr):
+        for base in cls.__bases__:
+            _accumulate(base, attr)
+        list_.extend(getattr(cls, attr, []))
+    _accumulate(cls, attr)
+    return list_
+
+
 def wrap(s, width, indent="", subindent=""):
     """
     Wraps a string at the specified width and indentation.

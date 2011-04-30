@@ -99,3 +99,21 @@ class UtilColorizeTest(unittest.TestCase):
     def test_colorize_strike_blue(self):
         self.assertEqual(util.colorize("Hello", "-blue-"), "\033[9m\033[34mHello\033[0m")
 
+
+class UtilClassAccumulateList(unittest.TestCase):
+    class Class0(object):
+        param = [0]
+
+    class Class1(object):
+        param = [1]
+
+    class Class2(Class0, Class1):
+        param = []
+
+    class Class3(Class2):
+        param = [3]
+
+    def test_accumulate_class_list(self):
+        self.assertEqual(sorted(util.accumulate_class_list(self.Class3, 'param')),
+                         [0, 1, 3])
+

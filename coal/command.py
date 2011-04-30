@@ -144,12 +144,16 @@ class Command(object):
 
     Example of a ``Command`` class and sub-commands::
 
-        class SubCommand1(Command):
+        class BaseCommand(Command):
+            opts = [
+                Opt('help', 'h', store=True) ]
+
+        class SubCommand1(BaseCommand):
             opts = [
                 Opt('alpha', 'a', store=True),
                 Opt('bravo', 'b', store=int) ]
 
-        class SubCommand2(Command):
+        class SubCommand2(BaseCommand):
             opts = [
                 Opt('alpha', 'a', store=str),
                 Opt('charlie', 'c', store={'a':1, 'b':2, 'c':3}) ]
@@ -170,18 +174,24 @@ class Command(object):
             def opt_delta(self, arg):
                 # ...process 'delta' argument 'arg'...
 
-    After hte command line options are parsed, any left over positional
+    Objects can also inherit from sub-classes of ``Command`` and in so doing
+    inherit their available options. In the above example both ``SubCommand1``
+    and ``SubCommand2`` inherit from ``BaseCommand`` and there fore accept the
+    ``--help`` or ``-h`` options.
+
+    After the command line options are parsed, any left over positional
     arguments are processed by calling the ``parsed_args`` method of the last
     sub-command. It is guaranteed that all previous options and flags have
     already been processed. The positional arguments will be passed to
     ``parsed_args`` in expanded form, not as a list, so the signature of the
     ``parsed_args`` method can be used to determine if the correct number of
-    positional arguments as provided.
+    positional arguments as provided. The ``pared_args`` method will be called
+    even if there are no positional arguments.
 
     ''opts''
         List of ``Opt`` instances used to specify the valid options recognized
-        by the command. If this field is not specified, the command does not
-        accept options, only positional arguments (or sub-commands)
+        by the command. This class parameter *MUST* be defined for option
+        inheritance to properly work.
 
     ''cmds''
         Dictionary mapping sub-command names with their associated ``Command``
@@ -196,7 +206,7 @@ class Command(object):
         self._parent = parent
         self._handlers = []
         self._options = {}
-        options = getattr(self, 'opts', [])
+        options = util.accumulate_class_list(self.__class__, 'opts')
         for opt in options:
             handler = opt.build_handler(self)
             self._handlers.append(handler)
@@ -243,22 +253,31 @@ class Command(object):
         then the system list ``sys.argv[1:]`` is used.
 
         Will call ``parse_args`` with any un-parsed positional arguments.
+
+        Raises a ``CommandError`` exception if the specified sub-command is not
+        found or if the wrong number of positional arguments are specified to
+        the final (sub-)command.
         """
         if args is None:
             args = sys.argv[1:]
         args = self._parse(args)
-        if args:
-            if self.cmdtable:
-                cmdname = args.pop(0)
-                self.subcmd = self.findcmd(cmdname)
-                if self.subcmd is None:
-                    raise CommandError('unknown command: %s' % cmdname)
-                self.subcmd.parse(args)
-            else:
-                try:
-                    util.checksignature(self.parse_args, *args)
-                except SignatureError as e:
-                    raise CommandError('wrong number of arguments')
+        if args and self.cmdtable:
+            cmdname = args.pop(0)
+            self.subcmd = self.findcmd(cmdname)
+            if self.subcmd is None:
+                raise CommandError('unknown command: %s' % cmdname)
+            self.subcmd.parse(args)
+        else:
+            try:
+                util.checksignature(self.parse_args, *args)
+            except SignatureError as e:
+                raise CommandError('wrong number of arguments')
+
+    def parse_args(self):
+        """
+        Default positional argument parser; don't accept arguments.
+        """
+        pass
 
     @property
     def _merged_optlist(self):
@@ -289,29 +308,40 @@ class Command(object):
         return short_opts, long_opts
 
     def _parse(self, args):
+        """
+        Parses command line arguments using ``getopt``.
+
+        Builds the ``getopt`` style short option string and long option list and
+        uses ``getopt` to parse the provided command line options. The
+        ``getopt`` short and long option configurations are built from the
+        merged option list for this ``Command`` instance. The corresponding
+        option handlers are then executed based on the specified options.
+
+        A ``CommandError`` will be raised in the event of an error parsing
+        either an invalid option or flag, or failing to parse an invalid option
+        argument.
+        """
         long_getopts = []
         short_getopts = []
 
+        # Build the getopt short and long option string and list.
         long_, short_ = self._merged_optlist
-
-        # Build the getopt long options list.
         for opt, handler in long_.iteritems():
             long_getopts.append(handler.long_getopt)
-
-        # Build the getopt short option string.
         for opt, handler in short_.iteritems():
             short_getopts.append(handler.short_getopt)
 
         # Build the option-to-handler map.
         long_.update(short_)
 
-        # Parse the command line argumenst.
-        _getopt = self.cmdtable and getopt.getopt or getopt.gnu_getopt
         try:
+            # Parse the command line argumenst.
+            _getopt = self.cmdtable and getopt.getopt or getopt.gnu_getopt
             opts, args = _getopt(args, ''.join(short_getopts), long_getopts)
         except getopt.GetoptError as e:
             raise CommandError(str(e))
 
+        # Run option actions.
         for opt, arg in opts:
             key = opt[2:] if opt[1] == '-' else opt[1:]
             try:
