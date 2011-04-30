@@ -100,9 +100,15 @@ class CommandSubCmdTest(unittest.TestCase):
         self.sub_command1 = mock.Mock()
         self.sub_command2 = mock.Mock()
         self.app_command = mock.Mock()
+
+        self.post_actions = []
+
+        def post_action(self_):
+            self.post_actions.append(self_.name)
         
         def parse_args(handler):
             def decorator(cls):
+                cls.post_options = post_action
                 cls.parse_args = getattr(self, handler)
                 cls.name = handler
                 return cls
@@ -157,8 +163,10 @@ class CommandSubCmdTest(unittest.TestCase):
             self._verify(cmd.subcmd, args, subcmds[0][1], subcmds[1:])
 
     def _test(self, cmd, args, opts, *subcmds):
+        post_actions = ['app_command'] + [c[0] for c in subcmds]
         self.parse(cmd)
         self._verify(self.app, args, opts, subcmds)
+        self.assertEqual(self.post_actions, post_actions)
 
     def test_cmd_parse_no_subcommand(self):
         self._test('-cb 645', [], {'charlie':1, 'bravo':645})

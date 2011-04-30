@@ -203,6 +203,7 @@ class Command(object):
         out as part of the command help.
     """
     def __init__(self, parent=None):
+        self.subcmd = None
         self._parent = parent
         self._handlers = []
         self._options = {}
@@ -272,12 +273,26 @@ class Command(object):
                 util.checksignature(self.parse_args, *args)
             except SignatureError as e:
                 raise CommandError('wrong number of arguments')
+        if not self._parent:
+            self._post_options()
+
+    def post_options(self):
+        """ Default post option parsing hook. """
 
     def parse_args(self):
+        """ Default positional argument parser; don't accept arguments. """
+
+    def _post_options(self):
         """
-        Default positional argument parser; don't accept arguments.
+        Dispatch the ''post_options'' hook.
+
+        This method is called to execute the ''post_options'' hook. The hook of
+        this ``Command`` instance is called first. If this command contains a
+        sub-command, the hook dispatcher of the handler will be called next.
         """
-        pass
+        self.post_options()
+        if self.subcmd:
+            self.subcmd._post_options()
 
     @property
     def _merged_optlist(self):
