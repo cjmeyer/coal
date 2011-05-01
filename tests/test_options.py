@@ -1,4 +1,4 @@
-# test_command.py
+# test_options.py
 
 
 import coal
@@ -6,20 +6,19 @@ import mock
 import os
 import unittest2 as unittest
 
-from coal import command, error
-from coal.command import Command, Opt
+from coal import error, Opt, Options
 
 from mock import patch
 
 
-class CommandOptTest(unittest.TestCase):
+class OptionsOptTest(unittest.TestCase):
     def setUp(self):
         self.opt_c = mock.Mock()
         self.opt_f = mock.Mock()
         self.parse_args = mock.Mock()
         self.opt_c.return_value = mock.Mock()
 
-        class TestCommand1(Command):
+        class TestOptions1(Options):
             opts = [
                 Opt('alpha', 'a', store=True),
                 Opt('bravo', 'b', store=True),
@@ -36,7 +35,7 @@ class CommandOptTest(unittest.TestCase):
             def parse_args(self_, *args):
                 self.parse_args(*args)
 
-        self.cmd = TestCommand1()
+        self.cmd = TestOptions1()
 
     def parse(self, cmd):
         self.cmd.parse(cmd.split())
@@ -88,16 +87,16 @@ class CommandOptTest(unittest.TestCase):
         self._test('--fox-trot ARG1 --fox-trot ARG2', [], {'fox-trot':['ARG1', 'ARG2']})
 
     def test_opt_parse_invalid_flag(self):
-        self.assertRaises(error.CommandError, self.parse, '--zulu')
+        self.assertRaises(error.OptionsError, self.parse, '--zulu')
 
     def test_opt_parse_invalid_option_arg_int(self):
-        self.assertRaises(error.CommandError, self.parse, '-eARG')
+        self.assertRaises(error.OptionsError, self.parse, '-eARG')
 
     def test_opt_parse_invalid_option_arg_enumeration(self):
-        self.assertRaises(error.CommandError, self.parse, '--delta=123')
+        self.assertRaises(error.OptionsError, self.parse, '--delta=123')
 
 
-class CommandSubCmdTest(unittest.TestCase):
+class OptionsSubCmdTest(unittest.TestCase):
     def setUp(self):
         self.sub_sub_command1 = mock.Mock()
         self.sub_command1 = mock.Mock()
@@ -118,22 +117,22 @@ class CommandSubCmdTest(unittest.TestCase):
             return decorator
 
         @parse_args('sub_sub_command1')
-        class SubSubCommand1(Command):
+        class SubSubOptions1(Options):
             opts = [
                 Opt('echo', 'e', store=str),
                 Opt('fox-trot', 'f', store=True) ]
 
         @parse_args('sub_command1')
-        class SubCommand1(Command):
+        class SubOptions1(Options):
             cmds = {
-                'cmd1-1':SubSubCommand1 }
+                'cmd1-1':SubSubOptions1 }
             opts = [
                 Opt('charlie', 'c', store=True),
                 Opt('delta', 'd', store=float),
                 Opt('echo', 'e', store={'a':4, 'b':3, 'c':2, 'd':1}) ]
 
         @parse_args('sub_command2')
-        class SubCommand2(Command):
+        class SubOptions2(Options):
             opts = [
                 Opt('charlie', 'c', store=False),
                 Opt('delta', 'd', store=str),
@@ -141,17 +140,17 @@ class CommandSubCmdTest(unittest.TestCase):
                 Opt('hotel', 'h', store=int) ]
 
         @parse_args('app_command')
-        class AppCommand(Command):
+        class AppOptions(Options):
             cmds = {
-                'cmd1|command1':SubCommand1,
-                'cmd2|command2':SubCommand2 }
+                'cmd1|command1':SubOptions1,
+                'cmd2|command2':SubOptions2 }
             opts = [
                 Opt('alpha', 'a', store=True),
                 Opt('bravo', 'b', store=int),
                 Opt('charlie', 'c', store=1),
                 Opt('delta', 'd', store=str) ]
 
-        self.app = AppCommand()
+        self.app = AppOptions()
 
     def parse(self, cmd):
         self.app.parse(cmd.split())
@@ -225,22 +224,22 @@ class CommandSubCmdTest(unittest.TestCase):
                 ('sub_sub_command1', {'echo':'Hello'}))
 
     def test_cmd_parse_unknown_command(self):
-        self.assertRaises(error.CommandError, self.parse, 'cmd3')
+        self.assertRaises(error.OptionsError, self.parse, 'cmd3')
 
 
-class CommandInheritanceTest(unittest.TestCase):
+class OptionsInheritanceTest(unittest.TestCase):
     def setUp(self):
-        class BaseCommand(Command):
+        class BaseOptions(Options):
             opts = [
                 Opt('alpha', 'a', store=True),
                 Opt('bravo', 'b', store=int) ]
 
-        class TestCommand(BaseCommand):
+        class TestOptions(BaseOptions):
             opts = [
                 Opt('charlie', 'c', store=True),
                 Opt('delta', 'd', store=str) ]
 
-        self.cmd = TestCommand()
+        self.cmd = TestOptions()
 
     def parse(self, cmd):
         self.cmd.parse(cmd.split())
@@ -266,11 +265,11 @@ class CommandInheritanceTest(unittest.TestCase):
 from test_shell import ShellBaseTest
 
 
-class CommandHelpTest(ShellBaseTest):
+class OptionsHelpTest(ShellBaseTest):
     def setUp(self):
         ShellBaseTest.setUp(self)
 
-        class TestSubCommand(Command):
+        class TestSubOptions(Options):
             desc = """
                 short sub-command description string
 
@@ -282,7 +281,7 @@ class CommandHelpTest(ShellBaseTest):
                 Opt('echo', 'e', 'echo help string', store=True),
                 Opt('foxtrot', '', 'foxtrot help string', store=str) ]
 
-        class TestCommand(Command):
+        class TestOptions(Options):
             desc = """
                 short command description string
 
@@ -290,7 +289,7 @@ class CommandHelpTest(ShellBaseTest):
                 """
             usage = '[options]'
             cmds = {
-                'subcmd|sub-command':TestSubCommand }
+                'subcmd|sub-command':TestSubOptions }
             opts = [
                 Opt('alpha', 'a', 'alpha help string', store=True),
                 Opt('bravo', 'b', 'bravo help string', store=int, metavar='INT'),
@@ -298,7 +297,7 @@ class CommandHelpTest(ShellBaseTest):
                 Opt('delta', '', 'delta help string', store=str) ]
 
         self.ui = self.shell
-        self.cmd = TestCommand(name='cmd')
+        self.cmd = TestOptions(name='cmd')
 
     def tearDown(self):
         ShellBaseTest.tearDown(self)

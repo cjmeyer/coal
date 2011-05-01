@@ -4,6 +4,10 @@ short command description string
 
     Long command description string.
 
+commands:
+
+    subcmd         short sub-command description string
+
 cmd options:
 
  -a --alpha        alpha help string

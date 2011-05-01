@@ -1,4 +1,4 @@
 # __init__.py
 
-from coal.command import Opt, Command
+from coal.options import Opt, Options
 

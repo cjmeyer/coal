@@ -1,4 +1,4 @@
-# command.py
+# options.py
 
 
 import getopt
@@ -6,7 +6,7 @@ import inspect
 import sys
 import util
 
-from error import SignatureError, CommandError
+from error import SignatureError, OptionsError
 
 
 try:
@@ -20,10 +20,10 @@ class Opt(object):
     Represents a command line option or flag and the associated action.
 
     A list of ``Opt`` objects is used to represent the valid options and flags
-    that are accepted by a ``Command`` object. These ``Opt`` objects are not
-    part of a ``Command`` object but rather part of the class. The ``Opt``
+    that are accepted by a ``Options`` object. These ``Opt`` objects are not
+    part of a ``Options`` object but rather part of the class. The ``Opt``
     instances are used as factories to build the option handlers that are
-    associated with a ``Command`` instance.
+    associated with a ``Options`` instance.
 
     Examples of valid options::
 
@@ -48,7 +48,7 @@ class Opt(object):
         Opt('dela', 'd', handler='delta_handler')
 
     In the above example, the method 'delta_handler' of the associated
-    ``Command`` instance will be used to process the provided option. If the
+    ``Options`` instance will be used to process the provided option. If the
     method doesn't take any arguments (other than the standard ``self``
     argument), then the option will be treated as a flag, otherwise the option
     will require an argument which will be passed to the handler as a string.
@@ -66,7 +66,7 @@ class _OptHandler(object):
                  tag=None, metavar=None):
         """
         Internal class used to associate a option action with a particular
-        ``Command`` instance.
+        ``Options`` instance.
         """
         if store and handler:
             raise OptError('cannot specify \'store\' and \'handler\'')
@@ -145,36 +145,36 @@ class _OptHandler(object):
         return self._handler(arg)
 
 
-class Command(object):
+class Options(object):
     """
     Base class for command line and sub-command parsing.
 
-    The ``Command`` class may be used to create sub-command based command line
-    applications ala ``svn`` and ``git``. A ``Command`` class represents a list
+    The ``Options`` class may be used to create sub-command based command line
+    applications ala ``svn`` and ``git``. A ``Options`` class represents a list
     of valid command line options and a set of possible sub-commands. If the
     command provides a sub-command table/list, then the command cannot take any
     positional arguments as the first positional argument found is assumed to be
     the sub-command to invoke.
 
-    A sub-``Command`` is able to parse the options that it defines and all the
+    A sub-``Options`` is able to parse the options that it defines and all the
     options provided by any of it's parent commands. A sub-command may provide
     options which override the parent command options and flags. In this case if
     a particular option or flag is before the sub-command in question, it is
     interpreted according to the parent command. If it appears after the
     sub-command it is interpreted according to the sub-command.
 
-    Example of a ``Command`` class and sub-commands::
+    Example of a ``Options`` class and sub-commands::
 
-        class BaseCommand(Command):
+        class BaseOptions(Options):
             opts = [
                 Opt('help', 'h', store=True) ]
 
-        class SubCommand1(BaseCommand):
+        class SubOptions1(BaseOptions):
             opts = [
                 Opt('alpha', 'a', store=True),
                 Opt('bravo', 'b', store=int) ]
 
-        class SubCommand2(BaseCommand):
+        class SubOptions2(BaseOptions):
             opts = [
                 Opt('alpha', 'a', store=str),
                 Opt('charlie', 'c', store={'a':1, 'b':2, 'c':3}) ]
@@ -182,11 +182,11 @@ class Command(object):
             def parse_args(self, *args):
                 # ...process the list of positional arguments...
 
-        class MyCommand(Command):
+        class MyOptions(Options):
             usage = 'Usage string for Mycommand'
             cmds = {
-                'cmd1|command1':SubCommand1,
-                'cmd2|command2':SubCommand2 }
+                'cmd1|command1':SubOptions1,
+                'cmd2|command2':SubOptions2 }
 
             opts = [
                 Opt('alpha, 'a', store=int),
@@ -195,9 +195,9 @@ class Command(object):
             def opt_delta(self, arg):
                 # ...process 'delta' argument 'arg'...
 
-    Objects can also inherit from sub-classes of ``Command`` and in so doing
-    inherit their available options. In the above example both ``SubCommand1``
-    and ``SubCommand2`` inherit from ``BaseCommand`` and therefore accept the
+    Objects can also inherit from sub-classes of ``Options`` and in so doing
+    inherit their available options. In the above example both ``SubOptions1``
+    and ``SubOptions2`` inherit from ``BaseOptions`` and therefore accept the
     ``--help`` or ``-h`` options.
 
     After the command line options are parsed, any left over positional
@@ -209,19 +209,25 @@ class Command(object):
     positional arguments as provided. The ``pared_args`` method will be called
     even if there are no positional arguments.
 
+    ''desc''
+        The description of the option set/command. The non-whitespace character
+        up to the first newline character is assumed to be the short
+        description. The rest is considered to be the long description and is
+        formated assuming to be ReST source text.
+
+    ''usage''
+        The short usage string for the command. This is the usage string printed
+        out as part of the command help.
+
     ''opts''
         List of ``Opt`` instances used to specify the valid options recognized
         by the command. This class parameter *MUST* be defined for option
         inheritance to properly work.
 
     ''cmds''
-        Dictionary mapping sub-command names with their associated ``Command``
+        Dictionary mapping sub-command names with their associated ``Options``
         sub-classes. Each command name (key to the dictionary) is a list of
         aliases separated by the ''|'' character.
-
-    ''usage''
-        The short usage string for the command. This is the usage string printed
-        out as part of the command help.
     """
 
     desc = '[no help text available]'
@@ -240,10 +246,6 @@ class Command(object):
             self._handlers.append(handler)
             self._options[handler.long_opt] = None
 
-        desc = self.desc.lstrip().split('\n', 1)
-        self._short_desc = desc.pop(0)
-        self._long_desc = desc.pop(0) if desc else ''
-
     def __getitem__(self, key):
         """ Get an options value """
         return self._options.get(key, None)
@@ -254,7 +256,7 @@ class Command(object):
 
     @property
     def cmdtable(self):
-        """ The ``Command`` object's table of sub-commands """
+        """ The ``Options`` object's table of sub-commands """
         return getattr(self, 'cmds', {})
 
     @property
@@ -262,12 +264,23 @@ class Command(object):
         """ The list of build option handlers """
         return self._options
 
+    @classmethod
+    def short_desc(cls):
+        return cls.desc.lstrip().split('\n', 1)[0]
+
+    @classmethod
+    def long_desc(cls):
+        try:
+            return cls.desc.lstrip().split('\n', 1)[1]
+        except:
+            return ''
+
     def findcmd(self, cmdname):
         """
-        Create a ``Command`` object for the specified sub-command.
+        Create a ``Options`` object for the specified sub-command.
 
         If the specified sub-command is not found, then ``None`` is returned.
-        The ``Command`` object's sub-command table is searched for the
+        The ``Options`` object's sub-command table is searched for the
         associated command class. Each entry in the command table dictionary
         is a key with a list of aliases separated by ''|'' characters and the
         command class used to parse options.
@@ -282,12 +295,12 @@ class Command(object):
         Parse a list of command line options.
 
         Parses the list of command line options against the options/flags and
-        sub-commands of this ``Command`` sub-class. If no options are provided,
+        sub-commands of this ``Options`` sub-class. If no options are provided,
         then the system list ``sys.argv[1:]`` is used.
 
         Will call ``parse_args`` with any un-parsed positional arguments.
 
-        Raises a ``CommandError`` exception if the specified sub-command is not
+        Raises a ``OptionsError`` exception if the specified sub-command is not
         found or if the wrong number of positional arguments are specified to
         the final (sub-)command.
         """
@@ -298,13 +311,13 @@ class Command(object):
             cmdname = args.pop(0)
             self.subcmd = self.findcmd(cmdname)
             if self.subcmd is None:
-                raise CommandError('unknown command: %s' % cmdname)
+                raise OptionsError('unknown command: %s' % cmdname)
             self.subcmd.parse(args)
         else:
             try:
                 util.checksignature(self.parse_args, *args)
             except SignatureError as e:
-                raise CommandError('wrong number of arguments')
+                raise OptionsError('wrong number of arguments')
         if not self._parent:
             self._post_options()
 
@@ -315,15 +328,64 @@ class Command(object):
         """ Default positional argument parser; don't accept arguments. """
 
     def help(self, ui):
-        ui.write('usage: %s %s\n\n' % (self._parent_usage(), self.usage))
-        ui.write('%s\n\n' % self._short_desc)
-        if self._long_desc:
-            ui.write('%s\n\n' % ui.rst(self._long_desc, indent='    '))
+        """
+        Write option help out to the provide ui/shell.
 
-        indent, groups = self._option_help()
+        The help output consists of a usage string, a short command description,
+        a detailed/long command description (formated from ReST - ReStructured
+        Text), optional list of valid sub-commands, and a list of option groups
+        (each option group represents the options of this or parent commands).
+
+        Example::
+
+            usage: app cmd [options]
+
+            an example short description
+
+                A longer description of the sub-command 'cmd' handled by the
+                base application 'app'.
+
+            commands:
+
+                sub-cmd      a short description of the sub-cmd
+
+            cmd options:
+
+             -a --alpha      description of the 'alpha' option
+             -b --bravo INT  description of the 'bravo' option
+
+            app options:
+
+             -c --charlie    description of the 'charlie' option
+
+        The above example shows the help generated for a command 'cmd' handled
+        by the base command (or application) 'app'. The command 'cmd' also has a
+        sub-command named 'sub-cmd'.
+        """
+        ui.write('usage: %s %s\n\n' % (self._parent_usage(), self.usage))
+        ui.write('%s\n\n' % self.short_desc())
+        long_desc = self.long_desc()
+        if long_desc:
+            ui.write('%s\n\n' % ui.rst(long_desc, indent='    '))
+
+        cmds = []
+        for name, cmd in self.cmdtable.iteritems():
+            name = '    %s  ' % name.split('|')[0]
+            cmds.append((name, cmd.short_desc()))
+
+        groups = []
+        indent = 0
+        if cmds:
+            groups.append(('commands', cmds))
+            indent = max(len(c[0]) for c in cmds)
+
+        indent_, groups_ = self._option_help()
+
+        groups.extend(groups_)
+        indent = max(indent, indent_)
         hanging = indent * ' '
         for group in groups:
-            ui.write('%s options:\n\n' % group[0])
+            ui.write('%s:\n\n' % group[0])
             for opt in group[1]:
                 ui.write('%s\n' % util.wrap(
                     opt[1], ui.termwidth(), opt[0].ljust(indent), hanging))
@@ -338,9 +400,13 @@ class Command(object):
         flag entry and the option help text.
         """
         opts = [h.help for h in self._handlers]
-        width = max(len(o[0]) for o in opts)
-        groups = [(self._cmdname, opts)]
-        
+        if opts:
+            groups = [('%s options' % self._cmdname, opts)]
+            width = max(len(o[0]) for o in opts)
+        else:
+            groups = []
+            width = 0
+
         if self._parent:
             width_, groups_ = self._parent._option_help()
             width = max(width, width_)
@@ -353,7 +419,7 @@ class Command(object):
         Dispatch the ''post_options'' hook.
 
         This method is called to execute the ''post_options'' hook. The hook of
-        this ``Command`` instance is called first. If this command contains a
+        this ``Options`` instance is called first. If this command contains a
         sub-command, the hook dispatcher of the handler will be called next.
         """
         self.post_options()
@@ -373,11 +439,11 @@ class Command(object):
 
         When parsing the command line, a sub-command must be able to parse the
         options belonging to it and any parent (sub)commands. To do this, the
-        options of this ``Command`` and its parent must be merged together into
+        options of this ``Options`` and its parent must be merged together into
         a single set of long and short options.
 
         Any options flags in this sub-command that are also defined by the
-        parent ``Command`` object (and it's parent...) are overridden by this
+        parent ``Options`` object (and it's parent...) are overridden by this
         sub-command.
         """
         if self._parent:
@@ -401,10 +467,10 @@ class Command(object):
         Builds the ``getopt`` style short option string and long option list and
         uses ``getopt` to parse the provided command line options. The
         ``getopt`` short and long option configurations are built from the
-        merged option list for this ``Command`` instance. The corresponding
+        merged option list for this ``Options`` instance. The corresponding
         option handlers are then executed based on the specified options.
 
-        A ``CommandError`` will be raised in the event of an error parsing
+        A ``OptionsError`` will be raised in the event of an error parsing
         either an invalid option or flag, or failing to parse an invalid option
         argument.
         """
@@ -426,7 +492,7 @@ class Command(object):
             _getopt = self.cmdtable and getopt.getopt or getopt.gnu_getopt
             opts, args = _getopt(args, ''.join(short_getopts), long_getopts)
         except getopt.GetoptError as e:
-            raise CommandError(str(e))
+            raise OptionsError(str(e))
 
         # Run option actions.
         for opt, arg in opts:
@@ -434,7 +500,7 @@ class Command(object):
             try:
                 long_[key](arg)
             except ValueError as e:
-                raise CommandError(
+                raise OptionsError(
                     'invalid argument to option %s: %s' % (opt, arg))
 
         return args
