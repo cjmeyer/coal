@@ -3,10 +3,13 @@
 
 import coal
 import mock
+import os
 import unittest2 as unittest
 
 from coal import command, error
 from coal.command import Command, Opt
+
+from mock import patch
 
 
 class CommandOptTest(unittest.TestCase):
@@ -23,9 +26,9 @@ class CommandOptTest(unittest.TestCase):
                 Opt('charlie', 'c', store=self.opt_c),
                 Opt('delta', 'd', store={'00':1, '01':2, '10':3, '11':4}),
                 Opt('echo', 'e', store=int),
-                Opt('fox-trot', 'f')
+                Opt('fox-trot', 'f', handler='fox_trot')
             ]
-            def opt_fox_trot(self_, arg):
+            def fox_trot(self_, arg):
                 try:
                     self_['fox-trot'].append(arg)
                 except:
@@ -260,19 +263,54 @@ class CommandInheritanceTest(unittest.TestCase):
         self._test('-b873', {'bravo':873})
 
 
-class CommandHelpTest(unittest.TestCase):
+from test_shell import ShellBaseTest
+
+
+class CommandHelpTest(ShellBaseTest):
     def setUp(self):
-        pass
+        ShellBaseTest.setUp(self)
+
+        class TestSubCommand(Command):
+            desc = """
+                short sub-command description string
+
+                Long sub-command description string.
+                """
+            usage = '[options]'
+            opts = [
+                Opt('alpha', 'a', 'alpha help string', store=int),
+                Opt('echo', 'e', 'echo help string', store=True),
+                Opt('foxtrot', '', 'foxtrot help string', store=str) ]
+
+        class TestCommand(Command):
+            desc = """
+                short command description string
+
+                Long command description string.
+                """
+            usage = '[options]'
+            cmds = {
+                'subcmd|sub-command':TestSubCommand }
+            opts = [
+                Opt('alpha', 'a', 'alpha help string', store=True),
+                Opt('bravo', 'b', 'bravo help string', store=int, metavar='INT'),
+                Opt('charlie', '', 'charlie help string', store=True),
+                Opt('delta', '', 'delta help string', store=str) ]
+
+        self.ui = self.shell
+        self.cmd = TestCommand(name='cmd')
+
+    def tearDown(self):
+        ShellBaseTest.tearDown(self)
+
+    def _test(self, cmd, fname, *args, **opts):
+        cmd.help(self.ui, *args, **opts)
+        fname = os.path.join(os.path.dirname(__file__), 'help', fname)
+        self.assertEqual(self.stdout.splitlines(), open(fname).read().splitlines())
 
     def test_help_command_normal(self):
-        pass
-
-    def test_help_command_verbose(self):
-        pass
+        self._test(self.cmd, 'cmd_normal.t')
 
     def test_help_sub_command_normal(self):
-        pass
-
-    def test_help_sub_command_verbose(self):
-        pass
+        self._test(self.cmd.findcmd('subcmd'), 'subcmd_normal.t')
 

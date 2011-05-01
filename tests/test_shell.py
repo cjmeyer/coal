@@ -176,9 +176,6 @@ class ShellTest(ShellBaseTest):
     def test_quiet_default(self):
         self.assertEqual(self.shell.quiet, False)
 
-#    def test_indent_default(self):
-#        self.assertEqual(self.shell.indent, 0)
-
     def _test_output_kw_options(self, fn_name, wr_name):
         with patch.object(self.shell, wr_name) as write:
             kw1 = Mock()

@@ -41,35 +41,47 @@ class Opt(object):
     argument of constant value. Each specified option may specify a short option
     name or an empty short option name.
 
-    If the ``store`` keyword argument is not specified, the a method on the
-    ``Command`` instance used when building the handler will be used to parse or
-    handle the option. The method used is the long option name with all ''-''
-    characters replaced with ''_'' and prefixed with ``opt_``: for example, an
-    option ``fox-trot`` will be parsed with the option method ``opt_fox_trot``.
+    It is possible to specify a command method to use to handle options. This is
+    done by specifying the ``handler`` keyword option::
+
+        # Simple option handled by the 'delta_handler' command method
+        Opt('dela', 'd', handler='delta_handler')
+
+    In the above example, the method 'delta_handler' of the associated
+    ``Command`` instance will be used to process the provided option. If the
+    method doesn't take any arguments (other than the standard ``self``
+    argument), then the option will be treated as a flag, otherwise the option
+    will require an argument which will be passed to the handler as a string.
     """
-    def __init__(self, long_, short_, store=None):
-        self._long = long_
-        self._short = short_
-        self._store = store
+    def __init__(self, *args, **kw):
+        self._args = args
+        self._kw = kw
 
     def build_handler(self, cmd):
-        return _OptHandler(cmd, self._long, self._short, self._store)
+        return _OptHandler(cmd, *self._args, **self._kw)
 
 
 class _OptHandler(object):
-    def __init__(self, cmd, long_, short_, store=None):
+    def __init__(self, cmd, long_, short_, help=None, store=None, handler=None,
+                 tag=None, metavar=None):
         """
         Internal class used to associate a option action with a particular
         ``Command`` instance.
         """
+        if store and handler:
+            raise OptError('cannot specify \'store\' and \'handler\'')
+
         self._cmd = cmd
         self._long = long_
         self._short = short_
+        self._help = help or '[no help text available]'
+        self._tag = tag or ''
+        self._metavar = metavar or 'VALUE'
         self._argreq = False
 
         if store is None:
             # Use a command method to handling the option/flag.
-            fn = getattr(cmd, 'opt_%s' % self._long.replace('-', '_'))
+            fn = getattr(cmd, handler)
             self._argreq = _getargspec(fn).args != 0
             def handler(arg):
                  fn(arg) if self._argreq else fn()
@@ -118,6 +130,15 @@ class _OptHandler(object):
         if not self._short:
             return ''
         return '%s%s' % (self._short, self._argreq and ':' or '')
+
+    @property
+    def help(self):
+        """ Tuple of flag help name and flag description """
+        flag = ' %3s%s%s%s ' % (self._short and '-%s ' % self._short,
+                                self._long and '--%s ' % self._long,
+                                self._argreq and '%s ' % self._metavar or '',
+                                self._tag and '%s ' % self._tag)
+        return flag, self._help
 
     def __call__(self, arg):
         """ Parse the provided option argument string """
@@ -176,7 +197,7 @@ class Command(object):
 
     Objects can also inherit from sub-classes of ``Command`` and in so doing
     inherit their available options. In the above example both ``SubCommand1``
-    and ``SubCommand2`` inherit from ``BaseCommand`` and there fore accept the
+    and ``SubCommand2`` inherit from ``BaseCommand`` and therefore accept the
     ``--help`` or ``-h`` options.
 
     After the command line options are parsed, any left over positional
@@ -202,16 +223,26 @@ class Command(object):
         The short usage string for the command. This is the usage string printed
         out as part of the command help.
     """
-    def __init__(self, parent=None):
+
+    desc = '[no help text available]'
+
+    def __init__(self, parent=None, name=None, aliases=None):
         self.subcmd = None
         self._parent = parent
+        self._cmdname = name
+        self._cmdaliases = aliases or []
         self._handlers = []
         self._options = {}
+
         options = util.accumulate_class_list(self.__class__, 'opts')
         for opt in options:
             handler = opt.build_handler(self)
             self._handlers.append(handler)
             self._options[handler.long_opt] = None
+
+        desc = self.desc.lstrip().split('\n', 1)
+        self._short_desc = desc.pop(0)
+        self._long_desc = desc.pop(0) if desc else ''
 
     def __getitem__(self, key):
         """ Get an options value """
@@ -242,8 +273,9 @@ class Command(object):
         command class used to parse options.
         """
         for cmd, cls in self.cmdtable.iteritems():
-            if cmdname in cmd.split('|'):
-                return cls(self)
+            aliases = cmd.split('|')
+            if cmdname in aliases:
+                return cls(self, name=cmdname, aliases=aliases)
 
     def parse(self, args=None):
         """
@@ -282,6 +314,40 @@ class Command(object):
     def parse_args(self):
         """ Default positional argument parser; don't accept arguments. """
 
+    def help(self, ui):
+        ui.write('usage: %s %s\n\n' % (self._parent_usage(), self.usage))
+        ui.write('%s\n\n' % self._short_desc)
+        if self._long_desc:
+            ui.write('%s\n\n' % ui.rst(self._long_desc, indent='    '))
+
+        indent, groups = self._option_help()
+        hanging = indent * ' '
+        for group in groups:
+            ui.write('%s options:\n\n' % group[0])
+            for opt in group[1]:
+                ui.write('%s\n' % util.wrap(
+                    opt[1], ui.termwidth(), opt[0].ljust(indent), hanging))
+            ui.write('\n')
+
+    def _option_help(self):
+        """
+        Group all options from this command and parent commands.
+
+        Each set of groups is placed in a tuple of the group title (the command
+        name) and a list option help tuples where each help tuple is the option
+        flag entry and the option help text.
+        """
+        opts = [h.help for h in self._handlers]
+        width = max(len(o[0]) for o in opts)
+        groups = [(self._cmdname, opts)]
+        
+        if self._parent:
+            width_, groups_ = self._parent._option_help()
+            width = max(width, width_)
+            groups.extend(groups_)
+
+        return width, groups
+
     def _post_options(self):
         """
         Dispatch the ''post_options'' hook.
@@ -293,6 +359,12 @@ class Command(object):
         self.post_options()
         if self.subcmd:
             self.subcmd._post_options()
+
+    def _parent_usage(self):
+        """ Return the command sequence to this command. """
+        if self._parent:
+            return '%s %s' % (self._parent._parent_usage(), self._cmdname)
+        return self._cmdname
 
     @property
     def _merged_optlist(self):
