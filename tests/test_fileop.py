@@ -452,6 +452,13 @@ class FileOpMakeFileTest(FileOpStatusHelper):
 
 
 class FileOpTemplateTest(FileOpFileTest):
+    def build_fop(self, shell_, srcroot, dstroot):
+        class TemplateFileOp(FileOp):
+            def __init__(self_, shell_, srcroot, dstroot):
+                FileOp.__init__(self_, shell_, srcroot, dstroot)
+
+        return TemplateFileOp(shell_, srcroot, dstroot)
+
     def _file(self, src, dst, chmod=None):
         self.act.template(src, dst, chmod=chmod)
 

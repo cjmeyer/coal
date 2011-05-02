@@ -368,15 +368,19 @@ class Options(object):
         self.ui.write('%s\n\n' % self.short_desc())
         long_desc = self.long_desc()
         if long_desc:
-            self.ui.write('%s\n\n' % self.ui.rst(long_desc, indent='    '))
+            long_desc = self.ui.rst(long_desc, indent='    ')
+            if long_desc:
+                self.ui.write('%s\n\n' % long_desc)
 
-        cmds = []
+        cmds = {}
         for name, cmd in self.cmdtable.iteritems():
             name = '    %s  ' % name.split('|')[0]
-            cmds.append((name, cmd.short_desc()))
+            cmds[name] = cmd.short_desc()
 
+        cmds = [(key, cmds[key]) for key in sorted(cmds.iterkeys())]
         groups = []
         indent = 0
+
         if cmds:
             groups.append(('commands', cmds))
             indent = max(len(c[0]) for c in cmds)

@@ -329,7 +329,7 @@ class FileOp(object):
         src = self.expandsrc(src)
         def srcfn():
             try:
-                srcdata = Template(filename=src).render(**self.__dict__)
+                srcdata = Template(filename=src).render(c=self)
             except NameError as e:
                 raise error.TemplateRenderError(src)
             return srcdata

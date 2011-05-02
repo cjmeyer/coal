@@ -446,9 +446,13 @@ def format_rst(src, width=80, indent=None, **kw):
         line_ = line.lstrip()
         lines.append([line_ and len(line) - len(line_) or 0, line_])
     if lines:
-        shared_indent = min(l[0] for l in lines if l[1])
-        for l in lines:
-            l[0] -= shared_indent
+        try:
+            shared_indent = min(l[0] for l in lines if l[1])
+        except ValueError as e:
+            pass
+        else:
+            for l in lines:
+                l[0] = max(l[0] - shared_indent, 0)
     rst = parse_body(lines)
     return rst(width, indent, **kw)
 
