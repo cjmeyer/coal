@@ -1,4 +1,6 @@
 # __init__.py
 
-from coal.options import Opt, Options
+from fileop import FileOp
+from options import Opt, Options
+from shell import Shell, ColorShell
 

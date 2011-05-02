@@ -1,6 +1,7 @@
 # options.py
 
 
+import coal
 import getopt
 import inspect
 import sys
@@ -232,8 +233,9 @@ class Options(object):
 
     desc = '[no help text available]'
 
-    def __init__(self, parent=None, name=None, aliases=None):
+    def __init__(self, parent=None, ui=None, name=None, aliases=None):
         self.subcmd = None
+        self.ui = ui or coal.Shell()
         self._parent = parent
         self._cmdname = name
         self._cmdaliases = aliases or []
@@ -288,7 +290,7 @@ class Options(object):
         for cmd, cls in self.cmdtable.iteritems():
             aliases = cmd.split('|')
             if cmdname in aliases:
-                return cls(self, name=cmdname, aliases=aliases)
+                return cls(self, ui=self.ui, name=cmdname, aliases=aliases)
 
     def parse(self, args=None):
         """
@@ -327,7 +329,7 @@ class Options(object):
     def parse_args(self):
         """ Default positional argument parser; don't accept arguments. """
 
-    def help(self, ui):
+    def help(self):
         """
         Write option help out to the provide ui/shell.
 
@@ -362,11 +364,11 @@ class Options(object):
         by the base command (or application) 'app'. The command 'cmd' also has a
         sub-command named 'sub-cmd'.
         """
-        ui.write('usage: %s %s\n\n' % (self._parent_usage(), self.usage))
-        ui.write('%s\n\n' % self.short_desc())
+        self.ui.write('usage: %s %s\n\n' % (self._parent_usage(), self.usage))
+        self.ui.write('%s\n\n' % self.short_desc())
         long_desc = self.long_desc()
         if long_desc:
-            ui.write('%s\n\n' % ui.rst(long_desc, indent='    '))
+            self.ui.write('%s\n\n' % self.ui.rst(long_desc, indent='    '))
 
         cmds = []
         for name, cmd in self.cmdtable.iteritems():
@@ -385,11 +387,11 @@ class Options(object):
         indent = max(indent, indent_)
         hanging = indent * ' '
         for group in groups:
-            ui.write('%s:\n\n' % group[0])
+            self.ui.write('%s:\n\n' % group[0])
             for opt in group[1]:
-                ui.write('%s\n' % util.wrap(
-                    opt[1], ui.termwidth(), opt[0].ljust(indent), hanging))
-            ui.write('\n')
+                self.ui.write('%s\n' % util.wrap(
+                    opt[1], self.ui.termwidth(), opt[0].ljust(indent), hanging))
+            self.ui.write('\n')
 
     def _option_help(self):
         """
@@ -478,12 +480,12 @@ class Options(object):
         short_getopts = []
 
         # Build the getopt short and long option string and list.
-        long_, short_ = self._merged_optlist
+        short_, long_ = self._merged_optlist
         for opt, handler in long_.iteritems():
             long_getopts.append(handler.long_getopt)
         for opt, handler in short_.iteritems():
             short_getopts.append(handler.short_getopt)
-
+            
         # Build the option-to-handler map.
         long_.update(short_)
 

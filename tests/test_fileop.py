@@ -100,11 +100,11 @@ class FileOpPathExpansionTest(FileOpBaseHelper):
         self.assertEqual(self.act.expanddst("path/to/dst"), self.dst("path/to/dst"))
 
     def test_expand_dst_simple_pattern(self):
-        self.act.template_vars["foo"] = "bar"
+        self.act.foo = "bar"
         self.assertEqual(self.act.expanddst("path/to/%foo%.txt"), self.dst("path/to/bar.txt"))
 
     def test_expand_dst_complext_pattern(self):
-        self.act.template_vars["foo"] = "bar"
+        self.act.foo = "bar"
         self.assertEqual(self.act.expanddst("path/to/%%_%%%foo%_%%.txt"), self.dst("path/to/%_%bar_%.txt"))
 
 
@@ -118,16 +118,6 @@ class FileOpStatusHelper(FileOpBaseHelper):
             p = os.path.relpath(p)
         self.assertEqual(self.shell.status.call_args_list.pop(0), ((msg.rjust(12),), {"color":color}))
         self.assertEqual(self.shell.status.call_args_list.pop(0), (("  %s\n" % p,), {}))
-
-
-class FileOpTemplateVarsTest(FileOpBaseHelper):
-    def test_get_template_var(self):
-        self.act.template_vars["var"] = 2
-        self.assertEqual(self.act["var"], 2)
-
-    def test_set_template_var(self):
-        self.act["var"] = 2
-        self.assertEqual(self.act.template_vars["var"], 2)
 
 
 class FileOpStatusTest(FileOpStatusHelper):
@@ -466,7 +456,7 @@ class FileOpTemplateTest(FileOpFileTest):
         self.act.template(src, dst, chmod=chmod)
 
     def test_render_template(self):
-        self.act.template_vars = {"foo":"bar"}
+        self.act.foo = "bar"
         self.file("source.t", "path/to/result.txt")
         self.assertEqual(read(self.dst("path/to/result.txt")), "bar\n")
 

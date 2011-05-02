@@ -17,8 +17,8 @@ var_re = re.compile(r"%(.+?)%")
 
 
 class FileOp(object):
-    def __init__(self, shell, srcroot, dstroot):
-        self.shell = shell
+    def __init__(self, ui, srcroot, dstroot):
+        self.ui = ui
         self.srcroot = str(srcroot)
         self.dstroot = str(dstroot)
 
@@ -31,15 +31,13 @@ class FileOp(object):
         self.cmdargs = []
         self.cmdopts = {}
 
-        self.template_vars = {}
-
-    def __getitem__(self, key, default=None):
-        """ Set a template variable value """
-        return self.template_vars.get(key, default)
-
-    def __setitem__(self, key, value):
-        """ Get a template variable value """
-        self.template_vars[key] = value
+#    def __getitem__(self, key, default=None):
+#        """ Set a template variable value """
+#        return self.template_vars.get(key, default)
+#
+#    def __setitem__(self, key, value):
+#        """ Get a template variable value """
+#        self.template_vars[key] = value
 
     def expandsrc(self, p):
         return os.path.abspath(os.path.join(self.srcroot, p))
@@ -63,27 +61,24 @@ class FileOp(object):
           - p: The path to expand.
         """
         def fn(m):
-            try:
-                return self.template_vars[m.group(1)]
-            except KeyError as e:
-                return m.group(1)
+            return getattr(self, m.group(1), m.group(1))
         p = "%".join((var_re.sub(fn, p_) for p_ in p.split("%%")))
         return os.path.abspath(os.path.join(self.dstroot, p))
 
     def status(self, msg, p, color=None):
-        self.shell.status("%s" % msg.lower().rjust(12), color=color)
-        self.shell.status("  %s\n" % os.path.relpath(p))
+        self.ui.status("%s" % msg.lower().rjust(12), color=color)
+        self.ui.status("  %s\n" % os.path.relpath(p))
 
     def cmd(self, cmd_, *args, **kw):
         """
-        Executes a invoke or revoke shell command respecting pretending.
+        Executes a invoke or revoke ui command respecting pretending.
 
         The command should be provided in the same way as commands are provided
         to the 'subprocess.Popen' class. If no working directory is specified,
         then the current FileOp destination root is used.
 
         FileOps are always executed regardless of the state of 'self.revoke'.
-        Since commands are executed by the shell and 'FileOp' has no knowledge
+        Since commands are executed by the ui and 'FileOp' has no knowledge
         of their result or operation, it is up to the caller to determine if the
         command should be executed based on the value of 'self.revoke'.
         """
@@ -96,11 +91,11 @@ class FileOp(object):
                     raise OSError("FileOp %s not found (%s)" % (cmd_, e))
                 raise
         args = [('"%s"' % a if " " in a else a) for a in args]
-        self.shell.write("running: %s %s\n" % (cmd_, " ".join(args)))
+        self.ui.write("running: %s %s\n" % (cmd_, " ".join(args)))
         if not self.pretend:
             stderr, stdout = p.communicate()
             if p.returncode:
-                self.shell.warn("socgen: command failed with exit code %s" %
+                self.ui.warn("socgen: command failed with exit code %s" %
                         p.returncode)
 
     def inside(self, p):
@@ -178,22 +173,22 @@ class FileOp(object):
         """
         dst = os.path.relpath(dst)
         while True:
-            choice = self.shell.choose(
+            choice = self.ui.choose(
                     "How do you wish to proceed with this file?\n"
                     "over(w)rite, (s)kip, (r)ender, (d)iff, (a)bort: ",
                     ["w", "s", "r", "d", "a"])
             if choice == "w":
-                self.shell.write("Overwritten\n")
+                self.ui.write("Overwritten\n")
                 return True
             elif choice == "s":
-                self.shell.write("Skipped\n")
+                self.ui.write("Skipped\n")
                 return False
             elif choice == "r":
-                self.shell.write("Rendering %s\n\n%s\n" % (dst, srcdata))
+                self.ui.write("Rendering %s\n\n%s\n" % (dst, srcdata))
             elif choice == "d":
-                self.shell.write("Showing differences for %s\n\n" % dst)
-                self.shell.diff(dstdata, srcdata, "old", "new")
-                self.shell.write("\n")
+                self.ui.write("Showing differences for %s\n\n" % dst)
+                self.ui.diff(dstdata, srcdata, "old", "new")
+                self.ui.write("\n")
             elif choice == "a":
                 raise error.AbortError("user")
 
@@ -334,7 +329,7 @@ class FileOp(object):
         src = self.expandsrc(src)
         def srcfn():
             try:
-                srcdata = Template(filename=src).render(**self.template_vars)
+                srcdata = Template(filename=src).render(**self.__dict__)
             except NameError as e:
                 raise error.TemplateRenderError(src)
             return srcdata

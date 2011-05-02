@@ -22,3 +22,7 @@ class OptionsError(Exception):
     """Exception raised due to error parsing the command line options."""
     pass
 
+class TemplateRenderError(Exception):
+    """Exception raised due to error endering a template."""
+    pass
+

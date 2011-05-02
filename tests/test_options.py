@@ -297,13 +297,13 @@ class OptionsHelpTest(ShellBaseTest):
                 Opt('delta', '', 'delta help string', store=str) ]
 
         self.ui = self.shell
-        self.cmd = TestOptions(name='cmd')
+        self.cmd = TestOptions(name='cmd', ui=self.ui)
 
     def tearDown(self):
         ShellBaseTest.tearDown(self)
 
     def _test(self, cmd, fname, *args, **opts):
-        cmd.help(self.ui, *args, **opts)
+        cmd.help(*args, **opts)
         fname = os.path.join(os.path.dirname(__file__), 'help', fname)
         self.assertEqual(self.stdout.splitlines(), open(fname).read().splitlines())
 
