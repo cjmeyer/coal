@@ -452,18 +452,11 @@ class FileOpMakeFileTest(FileOpStatusHelper):
 
 
 class FileOpTemplateTest(FileOpFileTest):
-    def build_fop(self, shell_, srcroot, dstroot):
-        class TemplateFileOp(FileOp):
-            def __init__(self_, shell_, srcroot, dstroot):
-                FileOp.__init__(self_, shell_, srcroot, dstroot)
-
-        return TemplateFileOp(shell_, srcroot, dstroot)
-
     def _file(self, src, dst, chmod=None):
         self.act.template(src, dst, chmod=chmod)
 
     def test_render_template(self):
-        self.act.foo = "bar"
+        self.act['foo'] = "bar"
         self.file("source.t", "path/to/result.txt")
         self.assertEqual(read(self.dst("path/to/result.txt")), "bar\n")
 

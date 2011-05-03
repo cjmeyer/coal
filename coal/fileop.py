@@ -31,6 +31,14 @@ class FileOp(object):
         self.cmdargs = []
         self.cmdopts = {}
 
+        self.template_vars = {}
+
+    def __getitem__(self, key):
+        return self.template_vars[key]
+
+    def __setitem__(self, key, value):
+        self.template_vars[key] = value
+
     def expandsrc(self, p):
         return os.path.abspath(os.path.join(self.srcroot, p))
 
@@ -321,7 +329,7 @@ class FileOp(object):
         src = self.expandsrc(src)
         def srcfn():
             try:
-                srcdata = Template(filename=src).render(c=self)
+                srcdata = Template(filename=src).render(**self.template_vars)
             except NameError as e:
                 raise error.TemplateRenderError(src)
             return srcdata
