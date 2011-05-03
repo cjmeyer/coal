@@ -31,14 +31,6 @@ class FileOp(object):
         self.cmdargs = []
         self.cmdopts = {}
 
-#    def __getitem__(self, key, default=None):
-#        """ Set a template variable value """
-#        return self.template_vars.get(key, default)
-#
-#    def __setitem__(self, key, value):
-#        """ Get a template variable value """
-#        self.template_vars[key] = value
-
     def expandsrc(self, p):
         return os.path.abspath(os.path.join(self.srcroot, p))
 
