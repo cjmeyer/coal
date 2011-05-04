@@ -61,7 +61,7 @@ class FileOp(object):
           - p: The path to expand.
         """
         def fn(m):
-            return getattr(self, m.group(1), m.group(1))
+            return self.template_vars.get(m.group(1), m.group(1))
         p = "%".join((var_re.sub(fn, p_) for p_ in p.split("%%")))
         return os.path.abspath(os.path.join(self.dstroot, p))
 

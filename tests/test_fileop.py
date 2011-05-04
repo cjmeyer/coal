@@ -100,11 +100,11 @@ class FileOpPathExpansionTest(FileOpBaseHelper):
         self.assertEqual(self.act.expanddst("path/to/dst"), self.dst("path/to/dst"))
 
     def test_expand_dst_simple_pattern(self):
-        self.act.foo = "bar"
+        self.act['foo'] = "bar"
         self.assertEqual(self.act.expanddst("path/to/%foo%.txt"), self.dst("path/to/bar.txt"))
 
     def test_expand_dst_complext_pattern(self):
-        self.act.foo = "bar"
+        self.act['foo'] = "bar"
         self.assertEqual(self.act.expanddst("path/to/%%_%%%foo%_%%.txt"), self.dst("path/to/%_%bar_%.txt"))
 
 
