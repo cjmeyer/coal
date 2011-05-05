@@ -5,7 +5,7 @@ setup(
     version="0.1.0",
     test_suite="unittest2.collector",
     tests_require=["unittest2"],
-    install_requires=["mock"],
+    install_requires=["Mako"],
     packages=find_packages(exclude=[])
 )
 
