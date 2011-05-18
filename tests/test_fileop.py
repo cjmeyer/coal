@@ -362,73 +362,85 @@ class FileOpCopyDirectoryTest(FileOpBaseHelper):
         self.assertTrue(not directories)
 
 
-#class FileOpInjectTest(FileOpStatusHelper):
-#    def setUp(self):
-#        FileOpStatusHelper.setUp(self)
-#
-#        with make_file(self.dst("doc/README.1")) as f:
-#            f.write("--start--\nREADME\n--end--\n")
-#        with make_file(self.dst("doc/README.2")) as f:
-#            f.write("--start--\ntext after\nREADME\ntext before\n--end--\n")
-#        with make_file(self.dst("doc/README.3")) as f:
-#            f.write("--start--\n1\n2\nREADME\n3\n4\n--end--\n")
-#
-#    def inject(self, dst, txt, pretend=False, revoke=False, **kw):
-#        self.fop.pretend = pretend
-#        self.fop.revoke = revoke
-#        with self.fop.inject(dst, **kw) as f:
-#            f.write(txt)
-#
-#    def test_invoke_inject_after(self):
-#        self.inject("doc/README.1", "\ninjected", after="--start--")
-#        self.assertEqual(read(self.dst("doc/README.1")), "--start--\ninjected\nREADME\n--end--\n")
-#
-#    def test_invoke_inject_before(self):
-#        self.inject("doc/README.1", "injected\n", before="--end--")
-#        self.assertEqual(read(self.dst("doc/README.1")), "--start--\nREADME\ninjected\n--end--\n")
-#
-#    def test_invoke_inject_status(self):
-#        self.inject("doc/README.1", "injected\n", after="--start--")
-#        self.assert_status("update", self.dst("doc/README.1"), "*green*")
-#
-#    def test_invoke_inject_before_and_after(self):
-#        self.assertRaises(error.ArgumentError, self.inject, "doc/README.1", "injected",
-#                before="--end--", after="--after--")
-#
-#    def test_invoke_inject_pretend(self):
-#        self.inject("doc/README.1", "\ninjected", after="--start--", pretend=True)
-#        self.assertEqual(read(self.dst("doc/README.1")), "--start--\nREADME\n--end--\n")
-#
-#    def test_invoke_inject_existing_data(self):
-#        self.inject("doc/README.1", "\ninjected", after="--start--")
-#        self.inject("doc/README.1", "\ninjected", after="--start--")
-#        self.assertEqual(read(self.dst("doc/README.1")), "--start--\ninjected\nREADME\n--end--\n")
-#
-#    def test_revoke_inject_after(self):
-#        self.inject("doc/README.2", "\ntext after", after="--start--", revoke=True)
-#        self.assertEqual(read(self.dst("doc/README.2")), "--start--\nREADME\ntext before\n--end--\n")
-#
-#    def test_revoke_inject_old_after(self):
-#        self.inject("doc/README.3", "\n2", after="--start--", revoke=True)
-#        self.assertEqual(read(self.dst("doc/README.3")), "--start--\n1\nREADME\n3\n4\n--end--\n")
-#
-#    def test_revoke_inject_before(self):
-#        self.inject("doc/README.2", "text before\n", before="--end--", revoke=True)
-#        self.assertEqual(read(self.dst("doc/README.2")), "--start--\ntext after\nREADME\n--end--\n")
-#
-#    def test_revoke_inject_old_before(self):
-#        self.inject("doc/README.3", "3\n", before="--end--", revoke=True)
-#        self.assertEqual(read(self.dst("doc/README.3")), "--start--\n1\n2\nREADME\n4\n--end--\n")
-#
-#    def test_revoke_inject_status(self):
-#        self.inject("doc/README.2", "text before\n", before="--end--", revoke=True)
-#        self.assert_status("update", self.dst("doc/README.2"), "*red*")
-#
-#    def test_revoke_inject_nonexisting_data(self):
-#        self.inject("doc/README.1", "\n1", after="--start--", revoke=True)
-#        self.assertEqual(read(self.dst("doc/README.1")), "--start--\nREADME\n--end--\n")
-#
-#    def test_revoke_inject_pretend(self):
-#        self.inject("doc/README.2", "\ntext after", after="--start--", revoke=True, pretend = True)
-#        self.assertEqual(read(self.dst("doc/README.2")), "--start--\ntext after\nREADME\ntext before\n--end--\n")
+class FileOpInjectTest(FileOpStatusHelper):
+    def setUp(self):
+        FileOpStatusHelper.setUp(self)
+        self.dst('README.1').write_bytes('--start--\nREADME\n--end--\n')
+
+    def inject(self, p, txt, pretend=False, **kw):
+        self.fop.pretend = pretend
+        self.fop.inject(p, txt, **kw)
+
+    def test_inject_after(self):
+        self.inject('README.1', '\ninjected', after='--start--')
+        self.assertEqual(self.dst('README.1').bytes(), '--start--\ninjected\nREADME\n--end--\n')
+
+    def test_inject_before(self):
+        self.inject('README.1', 'injected\n', before='--end--')
+        self.assertEqual(self.dst('README.1').bytes(), '--start--\nREADME\ninjected\n--end--\n')
+
+    def test_inject_status(self):
+        self.inject('README.1', '\ninjected', after='--start--')
+        self.assert_status('update', self.dst('README.1'), color='*green*')
+
+    def test_inject_pretend(self):
+        self.inject('README.1', '\ninjected', after='--start--', pretend=True)
+        self.assertEqual(self.dst('README.1').bytes(), '--start--\nREADME\n--end--\n')
+
+    def test_inject_pretend_status(self):
+        self.inject('README.1', '\ninjected', after='--start--', pretend=True)
+        self.assert_status('update', self.dst('README.1'), color='*green*')
+
+    def test_inject_existing_data(self):
+        self.inject('README.1', '\ninjected', after='--start--')
+        self.inject('README.1', '\ninjected', after='--start--')
+        self.assertEqual(self.dst('README.1').bytes(), '--start--\ninjected\nREADME\n--end--\n')
+
+    def test_inject_force_existing_data(self):
+        self.inject('README.1', '\ninjected', after='--start--')
+        self.inject('README.1', '\ninjected', after='--start--', force=True)
+        self.assertEqual(self.dst('README.1').bytes(), '--start--\ninjected\ninjected\nREADME\n--end--\n')
+
+
+class FileOpEraseTest(FileOpStatusHelper):
+    def setUp(self):
+        FileOpStatusHelper.setUp(self)
+        self.dst('README.1').write_bytes('--start--\ntext after\nREADME\ntext before\n--end--\n')
+        self.dst('README.2').write_bytes('--start--\n1\n2\nREADME\n3\n4\n--end--\n')
+
+    def erase(self, p, txt, pretend=False, **kw):
+        self.fop.pretend = pretend
+        self.fop.erase(p, txt, **kw)
+
+    def test_erase_after(self):
+        self.erase('README.1', '\ntext after', after='--start--')
+        self.assertEqual(self.dst('README.1').bytes(), '--start--\nREADME\ntext before\n--end--\n')
+
+    def test_erase_before(self):
+        self.erase('README.1', 'text before\n', before='--end--')
+        self.assertEqual(self.dst('README.1').bytes(), '--start--\ntext after\nREADME\n--end--\n')
+
+    def test_erase_old_after(self):
+        self.erase('README.2', '\n2', after='--start--')
+        self.assertEqual(self.dst('README.2').bytes(), '--start--\n1\nREADME\n3\n4\n--end--\n')
+
+    def test_erase_old_before(self):
+        self.erase('README.2', '3\n', before='--end--')
+        self.assertEqual(self.dst('README.2').bytes(), '--start--\n1\n2\nREADME\n4\n--end--\n')
+
+    def test_erase_status(self):
+        self.erase('README.1', 'text after', after='--start--')
+        self.assert_status('update', self.dst('README.1'), color='*red*')
+
+    def test_erase_nonexisting_data(self):
+        self.erase('README.2', '\n5', after='--start--')
+        self.assertEqual(self.dst('README.2').bytes(), '--start--\n1\n2\nREADME\n3\n4\n--end--\n')
+
+    def test_erase_pretend(self):
+        self.erase('README.2', '\n2', after='--start--', pretend=True)
+        self.assertEqual(self.dst('README.2').bytes(), '--start--\n1\n2\nREADME\n3\n4\n--end--\n')
+
+    def test_erase_pretend_status(self):
+        self.erase('README.2', '\n2', after='--start--', pretend=True)
+        self.assert_status('update', self.dst('README.2'), color='*red*')
 
