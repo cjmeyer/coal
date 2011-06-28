@@ -68,11 +68,16 @@ class FileOp(object):
         is restored. The new destination root may be specified as an absolute
         path or as a path relative to the current destination root.
         """
+        p = path(p)
+        srcroot = self.srcroot
         dstroot = self.dstroot
         class context(object):
             def __enter__(self_):
+                if not p.isabs():
+                    self.srcroot = self.src(p)
                 self.dstroot = self.dst(p)
             def __exit__(self_, exc_type, exc_value, exc_tb):
+                self.srcroot = srcroot
                 self.dstroot = dstroot
         return context()
 
@@ -104,7 +109,7 @@ class FileOp(object):
                 self.ui.warn("command failed with exit code %s" %
                         p.returncode)
 
-    def mkdir(self, p, mode=0755):
+    def directory(self, p, mode=0755):
         """ Create a new directory and any parent directories required. """
         p = self.dst(p)
         if p.isdir():
@@ -120,7 +125,7 @@ class FileOp(object):
         if p.isdir():
             self.status("remove", p, color="*red*")
             if not self.pretend:
-                p.removedirs()
+                p.rmtree()
 
     def _conflict(self, srcdata, dst, dstdata):
         """
@@ -393,6 +398,7 @@ class FileOp(object):
     def erase(self, p, srcdata, txt, after=None, before=None):
         """ The inverse of the 'inject' operation. """
         if txt in srcdata:
+            txt = re.escape(txt)
             if after:
                 mark, repl = (after, txt), r'\1\2'
             else:

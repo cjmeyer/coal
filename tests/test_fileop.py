@@ -120,12 +120,16 @@ class FileOpStatusTest(FileOpStatusHelper):
 class FileOpInsideTest(FileOpStatusHelper):
     def test_inside_relative_dir(self):
         with self.fop.inside('path/to/dir'):
+            self.assertEqual(self.fop.srcroot, self.src('path/to/dir'))
             self.assertEqual(self.fop.dstroot, self.dst('path/to/dir'))
+        self.assertEqual(self.fop.srcroot, self.srcroot)
         self.assertEqual(self.fop.dstroot, self.dstroot)
 
     def test_inside_absolute_dir(self):
         with self.fop.inside('/path/to/dir'):
+            self.assertEqual(self.fop.srcroot, self.srcroot)
             self.assertEqual(self.fop.dstroot, self.dst('/path/to/dir'))
+        self.assertEqual(self.fop.srcroot, self.srcroot)
         self.assertEqual(self.fop.dstroot, self.dstroot)
 
 
