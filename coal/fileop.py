@@ -378,8 +378,7 @@ class FileOp(object):
         Example::
 
           c = FileOp(...)
-          with c.inject("path/to/file.txt", after="--start--") as f:
-              f.write("\n    'new text'")
+          c.inject("path/to/file.txt", "\n    'new text'", after="--start--")
 
         Parameters:
           - dst: The file to insert text into.

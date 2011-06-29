@@ -411,6 +411,7 @@ class FileOpEraseTest(FileOpStatusHelper):
         FileOpStatusHelper.setUp(self)
         self.dst('README.1').write_bytes('--start--\ntext after\nREADME\ntext before\n--end--\n')
         self.dst('README.2').write_bytes('--start--\n1\n2\nREADME\n3\n4\n--end--\n')
+        self.dst('README.3').write_bytes('--start--\n();:{}!@#$%^&*\n--end--\n')
 
     def erase(self, p, txt, pretend=False, **kw):
         self.fop.pretend = pretend
@@ -447,4 +448,8 @@ class FileOpEraseTest(FileOpStatusHelper):
     def test_erase_pretend_status(self):
         self.erase('README.2', '\n2', after='--start--', pretend=True)
         self.assert_status('update', self.dst('README.2'), color='*red*')
+
+    def test_erase_complex_text(self):
+        self.erase('README.3', '();:{}!@#$%^&*\n', before='--end--')
+        self.assertEqual(self.dst('README.3').bytes(), '--start--\n--end--\n')
 
